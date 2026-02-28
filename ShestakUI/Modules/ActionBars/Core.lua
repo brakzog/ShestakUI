@@ -63,6 +63,15 @@ frame:SetScript("OnEvent", function()
 	end
 end)
 
+
+local function SafeNumber(v)
+	local n = tonumber(v)
+	if n then return n end
+	-- fallback au cas où c’est un “secret value”
+	return tonumber(tostring(v))
+end
+
+
 ----------------------------------------------------------------------------------------
 --	Set mouseover for bars
 ----------------------------------------------------------------------------------------
@@ -475,7 +484,13 @@ T.ShiftBarUpdate = function()
 			end
 
 			start, duration, enable = GetShapeshiftFormCooldown(i)
-			CooldownFrame_Set(cooldown, start, duration, enable)
+
+
+			start = SafeNumber(start) or 0
+			duration = SafeNumber(duration) or 0
+			enable = SafeNumber(enable) or enable
+
+CooldownFrame_Set(cooldown, start, duration, enable)
 
 			if isActive then
 				button:SetChecked(true)

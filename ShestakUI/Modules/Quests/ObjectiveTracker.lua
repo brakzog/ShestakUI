@@ -10,12 +10,14 @@ anchor:SetSize(224, 150)
 ObjectiveTrackerFrame.IsUserPlaced = function() return true end
 ObjectiveTrackerFrame:SetClampedToScreen(false)
 
-hooksecurefunc(ObjectiveTrackerFrame, "SetPoint", function(_, _, parent)
-	if parent ~= anchor then
-		ObjectiveTrackerFrame:ClearAllPoints()
-		ObjectiveTrackerFrame:SetPoint("TOPLEFT", anchor, "TOPLEFT", 20, 3)
-	end
-end)
+-- NOTE: Disabled because we now hard-detach trackers into our own columns.
+-- Keeping this hook tends to fight the new layout.
+-- hooksecurefunc(ObjectiveTrackerFrame, "SetPoint", function(_, _, parent)
+-- 	if parent ~= anchor then
+-- 		ObjectiveTrackerFrame:ClearAllPoints()
+-- 		ObjectiveTrackerFrame:SetPoint("TOPLEFT", anchor, "TOPLEFT", 20, 3)
+-- 	end
+-- end)
 
 local height = T.screenHeight / 1.6
 ObjectiveTrackerFrame:SetHeight(height)
@@ -349,7 +351,7 @@ local function SkinProgressBar(tracker, key)
 		if bar.BorderLeft then bar.BorderLeft:SetAlpha(0) end
 		if bar.BorderRight then bar.BorderRight:SetAlpha(0) end
 		if bar.BorderMid then bar.BorderMid:SetAlpha(0) end
-		if progressBar.PlayFlareAnim then progressBar.PlayFlareAnim  = T.dummy end -- hide animation
+		if progressBar.PlayFlareAnim then progressBar.PlayFlareAnim = T.dummy end -- hide animation
 
 		bar:SetSize(200, 16)
 		bar:SetStatusBarTexture(C.media.texture)
@@ -589,3 +591,110 @@ Maw:HookScript("OnClick", function(container)
 		container.List:SetPoint("TOPRIGHT", container, "TOPLEFT", -15, 1)
 	end
 end)
+
+----------------------------------------------------------------------------------------
+-- TRUE 3 COLUMNS (hard detach) - Campaign / Quests / Achievements
+----------------------------------------------------------------------------------------
+local COL_W = 240
+local COL_H = T.screenHeight / 1.6
+local GAP = 25
+
+-- We only use ObjectiveTrackerFrame as an update trigger; columns are independent.
+ObjectiveTrackerFrame:SetWidth(COL_W * 3 + GAP * 2)
+
+-- Create independent containers aligned on Shestak's anchor
+local col1 = CreateFrame("Frame", nil, UIParent)
+col1:SetSize(COL_W, COL_H)
+col1:SetPoint("TOPLEFT", anchor, "TOPLEFT", 20, 3)
+
+local col2 = CreateFrame("Frame", nil, UIParent)
+col2:SetSize(COL_W, COL_H)
+col2:SetPoint("TOPLEFT", col1, "TOPRIGHT", GAP, 0)
+
+local col3 = CreateFrame("Frame", nil, UIParent)
+col3:SetSize(COL_W, COL_H)
+col3:SetPoint("TOPLEFT", col2, "TOPRIGHT", GAP, 0)
+
+local function DetachTracker(tracker, parentFrame)
+	if not tracker then return end
+
+	tracker._threecol_parent = parentFrame
+
+	tracker:SetParent(parentFrame)
+	tracker:ClearAllPoints()
+	tracker:SetPoint("TOPLEFT", parentFrame, "TOPLEFT", 0, 0)
+	tracker:SetWidth(COL_W)
+	tracker:SetClampedToScreen(false)
+	tracker:Show()
+
+	-- Lock its position forever (Blizzard loves to move it back)
+	if not tracker._threecol_locked then
+		tracker._threecol_locked = true
+
+		hooksecurefunc(tracker, "SetPoint", function(self, point, relativeTo, relativePoint, xOfs, yOfs)
+			local p = self._threecol_parent
+			if not p then return end
+
+			-- If Blizzard changed parent, restore it
+			if self:GetParent() ~= p then
+				self:SetParent(p)
+			end
+
+			point = point or ""
+			relativePoint = relativePoint or ""
+			xOfs = xOfs or 0
+			yOfs = yOfs or 0
+
+			-- Always enforce our anchor
+			if relativeTo ~= p or point ~= "TOPLEFT" or relativePoint ~= "TOPLEFT" or xOfs ~= 0 or yOfs ~= 0 then
+				self:ClearAllPoints()
+				self:SetPoint("TOPLEFT", p, "TOPLEFT", 0, 0)
+			end
+		end)
+
+		-- Re-apply after collapsing/expanding this tracker
+		if tracker.SetCollapsed then
+			hooksecurefunc(tracker, "SetCollapsed", function()
+				C_Timer.After(0, ApplyHardColumns)
+			end)
+		end
+
+		-- Also catch the minimize button click if present
+		if tracker.Header and tracker.Header.MinimizeButton then
+			tracker.Header.MinimizeButton:HookScript("OnClick", function()
+				C_Timer.After(0, ApplyHardColumns)
+			end)
+		end
+	end
+end
+
+local applying = false
+function ApplyHardColumns()
+	if applying then return end
+	applying = true
+
+	DetachTracker(CampaignQuestObjectiveTracker, col1)
+	DetachTracker(QuestObjectiveTracker, col2)
+	DetachTracker(AchievementObjectiveTracker, col3)
+
+	C_Timer.After(0, function() applying = false end)
+end
+
+-- Prevent Blizzard from reattaching them
+hooksecurefunc(ObjectiveTrackerFrame, "Update", function()
+	C_Timer.After(0, ApplyHardColumns)
+end)
+
+local f = CreateFrame("Frame")
+f:RegisterEvent("PLAYER_ENTERING_WORLD")
+f:RegisterEvent("PLAYER_LOGIN")
+f:SetScript("OnEvent", function()
+	C_Timer.After(0.2, ApplyHardColumns)
+end)
+
+-- Re-apply after clicking the GLOBAL minimize button too (top of the tracker)
+if ObjectiveTrackerFrame and ObjectiveTrackerFrame.Header and ObjectiveTrackerFrame.Header.MinimizeButton then
+	ObjectiveTrackerFrame.Header.MinimizeButton:HookScript("OnClick", function()
+		C_Timer.After(0, ApplyHardColumns)
+	end)
+end

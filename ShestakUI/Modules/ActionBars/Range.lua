@@ -2,6 +2,15 @@ local T, C, L = unpack(ShestakUI)
 if C_AddOns.IsAddOnLoaded("tullaRange") then return end
 if C.actionbar.enable ~= true then return end
 
+
+local function SafeNumber(v, default)
+	local n = tonumber(v)
+	if n then return n end
+	n = tonumber(tostring(v))
+	if n then return n end
+	return default
+end
+
 ----------------------------------------------------------------------------------------
 --	Out of range check(tullaRange by Tuller)
 ----------------------------------------------------------------------------------------
@@ -17,7 +26,7 @@ local function startFlashing(button)
 		animation:SetLooping("BOUNCE")
 
 		local alpha = animation:CreateAnimation("ALPHA")
-		alpha:SetDuration(Addon:GetFlashDuration())
+		alpha:SetDuration(SafeNumber(Addon:GetFlashDuration(), 0.2))
 		alpha:SetFromAlpha(0)
 		alpha:SetToAlpha(0.7)
 		alpha.owner = button
@@ -233,7 +242,7 @@ function Addon:Enable()
 	hooksecurefunc('ActionButton_UpdateRangeIndicator', actionButton_UpdateRange)
 
 	-- disable the ActionBarButtonUpdateFrame OnUpdate handler - we don't actually need it
-	ActionBarButtonUpdateFrame:SetScript("OnUpdate", nil)
+	--ActionBarButtonUpdateFrame:SetScript("OnUpdate", nil)
 
 	if self:HandlePetActions() then
 		for _, button in pairs(PetActionBar.actionButtons) do

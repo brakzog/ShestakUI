@@ -25,28 +25,28 @@ LPSTAT_CONFIG = {
 	Clock = {
 		enabled = C.stats.clock,	-- Local time and the 24 hour clock can be enabled in-game via time manager (right-click)
 		AM = class"A", PM = class"P", colon = class":",	-- These values apply to the displayed clock
-		anchor_frame = "UIParent", anchor_to = "left", anchor_from = "bottomleft",
-		x_off = 20, y_off = 11, tip_frame = "UIParent", tip_anchor = "BOTTOMLEFT", tip_x = 21, tip_y = 20
+		anchor_frame = "UIParent", anchor_to = "center", anchor_from = "bottom",
+		x_off = 20, y_off = 11, tip_frame = "UIParent", tip_anchor = "BOTTOM", tip_x = 21, tip_y = 20
 	},
 	Latency = {
 		enabled = C.stats.latency,
 		fmt = "[color]%d|r"..class"ms",	-- "77ms", [color] inserts latency color code
 	 	anchor_frame = "Clock", anchor_to = "left", anchor_from = "right",
-		x_off = C.stats.clock and 3 or 0, y_off = 0, tip_frame = "UIParent", tip_anchor = "BOTTOMLEFT", tip_x = 21, tip_y = 20
+		x_off = C.stats.clock and 3 or 0, y_off = 0, tip_frame = "UIParent", tip_anchor = "BOTTOM", tip_x = 21, tip_y = 20
 	},
 	FPS = {
 		enabled = C.stats.fps,
 		fmt = "%d"..class"fps",	-- "42fps"
 		max_addons = nil,	-- Holding Alt reveals hidden addons
 		anchor_frame = C.stats.latency and "Latency" or "Clock", anchor_to = "left", anchor_from = "right",
-		x_off = 3, y_off = 0, tip_frame = "UIParent", tip_anchor = "BOTTOMLEFT", tip_x = 21, tip_y = 20
+		x_off = 3, y_off = 0, tip_frame = "UIParent", tip_anchor = "BOTTOM", tip_x = 21, tip_y = 20
 	},
 	Friends = {
 		enabled = C.stats.friend,
 		fmt = "%d/%d"..class"f",	-- "3/40F"
 		maxfriends = nil,	-- Set max friends listed, nil means no limit
 		anchor_frame = C.stats.fps and "FPS" or C.stats.latency and "Latency" or "Clock", anchor_to = "left", anchor_from = "right",
-		x_off = 3, y_off = 0, tip_frame = "UIParent", tip_anchor = "BOTTOMLEFT", tip_x = 21, tip_y = 20
+		x_off = 3, y_off = 0, tip_frame = "UIParent", tip_anchor = "BOTTOM", tip_x = 21, tip_y = 20
 	},
 	Guild = {
 		enabled = C.stats.guild,
@@ -56,7 +56,7 @@ LPSTAT_CONFIG = {
 		show_xp = true,	-- Show guild experience
 		sorting = "class",	-- Default roster sorting: name, level, class, zone, rank, note
 		anchor_frame = C.stats.friend and "Friends" or C.stats.fps and "FPS" or C.stats.latency and "Latency" or "Clock", anchor_to = "left", anchor_from = "right",
-		x_off = 3, y_off = 0, tip_frame = "UIParent", tip_anchor = "BOTTOMLEFT", tip_x = 21, tip_y = 20
+		x_off = 3, y_off = 0, tip_frame = "UIParent", tip_anchor = "BOTTOM", tip_x = 21, tip_y = 20
 	},
 	Durability = {
 		enabled = C.stats.durability,
@@ -65,7 +65,7 @@ LPSTAT_CONFIG = {
 		ignore_inventory = false,	-- Ignore inventory gear when auto-repairing
 		gear_icons = false,	-- Show your gear icons in the tooltip
 		anchor_frame = C.stats.guild and "Guild" or C.stats.friend and "Friends" or C.stats.fps and "FPS" or C.stats.latency and "Latency" or "Clock", anchor_to = "left", anchor_from = "right",
-		x_off = 3, y_off = 0, tip_frame = "UIParent", tip_anchor = "BOTTOMLEFT", tip_x = 21, tip_y = 20
+		x_off = 3, y_off = 0, tip_frame = "UIParent", tip_anchor = "BOTTOM", tip_x = 21, tip_y = 20
 	},
 	Experience = {
 		enabled = C.stats.experience,
@@ -97,12 +97,12 @@ LPSTAT_CONFIG = {
 			["Гидраксианские Повелители Вод"] = "Повелители Вод",
 		},
 		anchor_frame = C.stats.durability and "Durability" or C.stats.guild and "Guild" or C.stats.friend and "Friends" or C.stats.fps and "FPS" or C.stats.latency and "Latency" or "Clock", anchor_to = "left", anchor_from = "right",
-		x_off = 3, y_off = 0, tip_frame = "UIParent", tip_anchor = "BOTTOMLEFT", tip_x = 21, tip_y = 20
+		x_off = 3, y_off = 0, tip_frame = "UIParent", tip_anchor = "BOTTOM", tip_x = 21, tip_y = 20
 	},
 	Talents = {
 		enabled = C.stats.talents,
 		anchor_frame = C.stats.experience and "Experience" or C.stats.durability and "Durability" or C.stats.guild and "Guild" or C.stats.friend and "Friends" or C.stats.fps and "FPS" or C.stats.latency and "Latency" or "Clock", anchor_to = "left", anchor_from = "right",
-		x_off = 3, y_off = 0, tip_frame = "UIParent", tip_anchor = "BOTTOMLEFT", tip_x = 21, tip_y = 20
+		x_off = 3, y_off = 0, tip_frame = "UIParent", tip_anchor = "BOTTOM", tip_x = 21, tip_y = 20
 	},
 -- Bottomright block
 	Coords = {

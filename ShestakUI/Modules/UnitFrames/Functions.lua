@@ -1,6 +1,34 @@
 local T, C, L = unpack(ShestakUI)
 if C.unitframe.enable ~= true and C.nameplate.enable ~= true then return end
 
+
+-- Curve API compat (11.0.9+ wants AddPoint(point) instead of AddPoint(x, value)
+-- -------------------------------------------------------------------
+local function AddCurvePoint(curve, x, value)
+	if not curve or not curve.AddPoint then return end
+
+	-- Try old API first (pre-11.0.9)
+	if pcall(curve.AddPoint, curve, x, value) then return end
+
+	-- New API: AddPoint(point)
+	-- Try official helper if present
+	if C_CurveUtil and C_CurveUtil.CreateCurvePoint then
+		local ok = pcall(curve.AddPoint, curve, C_CurveUtil.CreateCurvePoint(x, value))
+		if ok then return end
+	end
+
+	-- Fallback: common point table shapes
+	local candidates = {
+		{ x = x, y = value },
+		{ time = x, value = value },
+		{ position = x, value = value },
+	}
+
+	for _, pt in ipairs(candidates) do
+		if pcall(curve.AddPoint, curve, pt) then return end
+	end
+end
+
 ----------------------------------------------------------------------------------------
 --	Unit frames functions
 ----------------------------------------------------------------------------------------
@@ -22,19 +50,21 @@ T.SetFontString = function(parent, fontName, fontHeight, fontStyle)
 end
 
 local gradient = C_CurveUtil.CreateColorCurve()
-gradient:AddPoint(0.0, CreateColor(0.69, 0.31, 0.31))
-gradient:AddPoint(0.5, CreateColor(0.65, 0.63, 0.35))
-gradient:AddPoint(1, CreateColor(0.33, 0.59, 0.33))
+
+AddCurvePoint(gradient, 0.0, CreateColor(0.69, 0.31, 0.31))
+AddCurvePoint(gradient, 0.5, CreateColor(0.65, 0.63, 0.35))
+AddCurvePoint(gradient, 1.0, CreateColor(0.33, 0.59, 0.33))
+
 
 local health_value = C_CurveUtil.CreateColorCurve()
 health_value:SetType(Enum.LuaCurveType.Step)
-health_value:AddPoint(0, CreateColor(1, 1, 1, 1))
-health_value:AddPoint(1, CreateColor(1, 1, 1, 0))
+AddCurvePoint(health_value, 0, CreateColor(1, 1, 1, 1))
+AddCurvePoint(health_value, 1, CreateColor(1, 1, 1, 0))
 
 local full_health_value = C_CurveUtil.CreateColorCurve()
 full_health_value:SetType(Enum.LuaCurveType.Step)
-full_health_value:AddPoint(0, CreateColor(1, 1, 1, 0))
-full_health_value:AddPoint(1, CreateColor(1, 1, 1, 1))
+AddCurvePoint(full_health_value, 0, CreateColor(1, 1, 1, 0))
+AddCurvePoint(full_health_value, 1, CreateColor(1, 1, 1, 1))
 
 T.PostUpdateHealth = function(health, unit, cur, max)
 	if not health.value then return end	-- arena target
@@ -135,6 +165,11 @@ T.PostUpdateBackdropColor = function(element, color)
 	end
 end
 
+
+
+-- -------------------------------------------------------------------
+
+
 T.PostUpdateHealthColor = function(health, unit, color)
 	T.PostUpdateBackdropColor(health, color)
 
@@ -174,10 +209,9 @@ T.PostUpdateHealthColor = function(health, unit, color)
 			end
 
 			local curve = C_CurveUtil.CreateColorCurve()
-			curve:AddPoint(0.0, CreateColor(1, 0, 0))
-			curve:AddPoint(0.5, CreateColor(1, 1, 0))
-			curve:AddPoint(1, CreateColor(r, g, b))
-
+			AddCurvePoint(curve, 0.0, CreateColor(1, 0, 0))
+			AddCurvePoint(curve, 0.5, CreateColor(1, 1, 0))
+			AddCurvePoint(curve, 1.0, CreateColor(r, g, b))
 			local color = UnitHealthPercent(unit, true, curve)
 			local newr, newg, newb = color:GetRGB()
 			health:GetStatusBarTexture():SetVertexColor(newr, newg, newb)
@@ -191,8 +225,8 @@ end
 
 local full_health = C_CurveUtil.CreateColorCurve()
 full_health:SetType(Enum.LuaCurveType.Step)
-full_health:AddPoint(0, CreateColor(1, 1, 1, 1))
-full_health:AddPoint(0.95, CreateColor(1, 1, 1, 0.6))
+AddCurvePoint(full_health, 0, CreateColor(1, 1, 1, 1))
+AddCurvePoint(full_health, 0.95, CreateColor(1, 1, 1, 0.6))
 
 T.PostUpdateRaidHealth = function(health, unit, cur, max)
 	local self = health:GetParent()
@@ -290,10 +324,9 @@ T.PostUpdateRaidHealthColor = function(health, unit, color)
 			end
 
 			local curve = C_CurveUtil.CreateColorCurve()
-			curve:AddPoint(0.0, CreateColor(1, 0, 0))
-			curve:AddPoint(0.5, CreateColor(1, 1, 0))
-			curve:AddPoint(1, CreateColor(r, g, b))
-
+AddCurvePoint(curve, 0.0, CreateColor(1, 0, 0))
+AddCurvePoint(curve, 0.5, CreateColor(1, 1, 0))
+AddCurvePoint(curve, 1.0, CreateColor(r, g, b))
 			local color = UnitHealthPercent(unit, true, curve)
 			local newr, newg, newb = color:GetRGB()
 			health:GetStatusBarTexture():SetVertexColor(newr, newg, newb)
@@ -311,13 +344,13 @@ end
 
 local power_value = C_CurveUtil.CreateColorCurve()
 power_value:SetType(Enum.LuaCurveType.Step)
-power_value:AddPoint(0, CreateColor(1, 1, 1, 1))
-power_value:AddPoint(1, CreateColor(1, 1, 1, 0))
+AddCurvePoint(power_value, 0, CreateColor(1, 1, 1, 1))
+AddCurvePoint(power_value, 1, CreateColor(1, 1, 1, 0))
 
 local full_power_value = C_CurveUtil.CreateColorCurve()
 full_power_value:SetType(Enum.LuaCurveType.Step)
-full_power_value:AddPoint(0, CreateColor(1, 1, 1, 0))
-full_power_value:AddPoint(1, CreateColor(1, 1, 1, 1))
+AddCurvePoint(full_power_value, 0, CreateColor(1, 1, 1, 0))
+AddCurvePoint(full_power_value, 1, CreateColor(1, 1, 1, 1))
 
 T.PostUpdatePower = function(power, unit, cur, _, max)
 	local self = power:GetParent()
@@ -485,8 +518,8 @@ end
 
 local low_mana = C_CurveUtil.CreateColorCurve()
 low_mana:SetType(Enum.LuaCurveType.Step)
-low_mana:AddPoint(0, CreateColor(1, 1, 1, 1))
-low_mana:AddPoint(0.2, CreateColor(1, 1, 1, 0))
+AddCurvePoint(low_mana, 0, CreateColor(1, 1, 1, 1))
+AddCurvePoint(low_mana, 0.2, CreateColor(1, 1, 1, 0))
 
 T.UpdateManaLevel = function(self, elapsed)
 	self.elapsed = (self.elapsed or 0) + elapsed
@@ -520,8 +553,9 @@ T.UpdateManaLevel = function(self, elapsed)
 end
 
 local full_mana = C_CurveUtil.CreateColorCurve()
-full_mana:AddPoint(0.99, CreateColor(1, 1, 1, 1))
-full_mana:AddPoint(1, CreateColor(1, 1, 1, 0))
+AddCurvePoint(full_mana, 0.99, CreateColor(1, 1, 1, 1))
+AddCurvePoint(full_mana, 1.0, CreateColor(1, 1, 1, 0))
+
 
 T.UpdateClassMana = function(self, elapsed)
 	self.elapsed = (self.elapsed or 0) + elapsed
@@ -811,8 +845,9 @@ local dispelIndex = {
 
 local curve = C_CurveUtil.CreateColorCurve()
 curve:SetType(Enum.LuaCurveType.Step)
+
 for i, color in pairs(dispelIndex) do
-	curve:AddPoint(i, color)
+	AddCurvePoint(curve, i, color)
 end
 T.DispelCurve = curve
 

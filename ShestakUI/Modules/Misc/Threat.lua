@@ -1,6 +1,16 @@
 ﻿local T, C, L = unpack(ShestakUI)
 if C.threat.enable ~= true then return end
 
+
+
+local function SafeNumber(v)
+	if v == nil then return nil end
+	-- Some Blizzard APIs return "secret" number values; tostring() may work, direct compares may not.
+	local n = tonumber(v)
+	if n then return n end
+	local s = tostring(v)
+	return tonumber(s)
+end
 ----------------------------------------------------------------------------------------
 --	Based on alThreatMeter(by Allez)
 ----------------------------------------------------------------------------------------
@@ -27,8 +37,13 @@ local CreateFS = function(frame)
 end
 
 local AddUnit = function(unit)
-	local threatpct, _, threatval = select(3, UnitDetailedThreatSituation(unit, "target"))
-	if threatval and threatval < 0 then
+	local _, threatpct, _, threatval = UnitDetailedThreatSituation("player", unit)
+
+	threatpct = SafeNumber(threatpct) or 0
+	threatval = SafeNumber(threatval) or 0
+
+-- Now comparisons are safe
+if  threatval and threatval < 0 then
 		threatval = threatval + 410065408
 	end
 	local guid = UnitGUID(unit)
