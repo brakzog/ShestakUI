@@ -96,3 +96,21 @@ f:SetScript("OnEvent", function()
 		ObjectiveTrackerFrame:Update()
 	end
 end)
+
+
+
+
+C_Timer.After(1, function()
+    if not ObjectiveTrackerFrame then return end
+
+    ObjectiveTrackerFrame:ClearAllPoints()
+    ObjectiveTrackerFrame:SetPoint("TOPRIGHT", UIParent, "TOPRIGHT", -30, -180)
+
+    -- Largeur max forcée
+    ObjectiveTrackerFrame:SetWidth(420)
+
+    -- Empêche les modules d'élargir au-delà
+    ObjectiveTrackerFrame:SetClampedToScreen(true)
+end)
+
+

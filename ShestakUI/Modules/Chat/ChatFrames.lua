@@ -1,6 +1,164 @@
 ﻿local T, C, L = unpack(ShestakUI)
 if C.chat.enable ~= true then return end
 
+
+-- --------------------------------------------------------------------
+-- HARD NUKE: Blizzard HelpTips about Voice/Speech/Narration (overlay tutorial)
+-- --------------------------------------------------------------------
+do
+	-- 1) Disable tutorials globally (safe if CVar exists)
+	pcall(SetCVar, "showTutorials", 0)
+
+	-- 2) Block via global function (some builds use this)
+	local orig_Show = _G.HelpTip_Show
+	if type(orig_Show) == "function" then
+		_G.HelpTip_Show = function(parent, info, relativeRegion, ...)
+			if info and type(info.text) == "string" then
+				local t = info.text:lower()
+				if t:find("synthèse vocale", 1, true)
+					or t:find("sous%-titres", 1, true)
+					or t:find("canal vocal", 1, true)
+					or t:find("speech", 1, true)
+					or t:find("transcription", 1, true)
+					or t:find("text to speech", 1, true)
+				then
+					return
+				end
+			end
+			return orig_Show(parent, info, relativeRegion, ...)
+		end
+	end
+
+	-- 3) Block via method (some builds bypass HelpTip_Show and call HelpTip:Show)
+	if _G.HelpTip and type(_G.HelpTip.Show) == "function" then
+		local orig_Method = _G.HelpTip.Show
+		_G.HelpTip.Show = function(self, parent, info, relativeRegion, ...)
+			if info and type(info.text) == "string" then
+				local t = info.text:lower()
+				if t:find("synthèse vocale", 1, true)
+					or t:find("sous%-titres", 1, true)
+					or t:find("canal vocal", 1, true)
+					or t:find("speech", 1, true)
+					or t:find("transcription", 1, true)
+					or t:find("text to speech", 1, true)
+				then
+					return
+				end
+			end
+			return orig_Method(self, parent, info, relativeRegion, ...)
+		end
+	end
+
+	-- 4) Vacuum cleaner: if Blizzard spawns it anyway, delete it repeatedly for a few seconds
+	local function HideAllTips()
+		if _G.HelpTip and type(_G.HelpTip.HideAll) == "function" then
+			_G.HelpTip:HideAll()
+		elseif type(_G.HelpTipHideAll) == "function" then
+			_G.HelpTipHideAll()
+		end
+	end
+
+	C_Timer.After(0.5, HideAllTips)
+	C_Timer.After(1.5, HideAllTips)
+	C_Timer.After(3.0, HideAllTips)
+
+	-- small ticker for the “it keeps coming back” case (stops after ~10s)
+	local ticks = 0
+	C_Timer.NewTicker(1.0, function()
+		ticks = ticks + 1
+		HideAllTips()
+		if ticks >= 10 then
+			-- ticker auto-stops by returning nil; WoW ticker stops when no ref kept
+		end
+	end, 10)
+end
+
+
+----------------------------------------------------------------------------------------
+--	Narrator / Speech-to-text OFF + Block the Blizzard HelpTip overlay
+----------------------------------------------------------------------------------------
+local function KillNarrator()
+	-- CVars (harmless if missing)
+	pcall(SetCVar, "enableNarration", 0)
+	pcall(SetCVar, "speechToText", 0)
+	pcall(SetCVar, "voiceTranscription", 0)
+	pcall(SetCVar, "textToSpeech", 0)
+	pcall(SetCVar, "voiceChatTextToSpeech", 0)
+
+	-- API (if present)
+	if C_Accessibility then
+		if C_Accessibility.SetNarratorEnabled then pcall(C_Accessibility.SetNarratorEnabled, false) end
+		if C_Accessibility.SetSpeechToTextEnabled then pcall(C_Accessibility.SetSpeechToTextEnabled, false) end
+		if C_Accessibility.SetTextToSpeechEnabled then pcall(C_Accessibility.SetTextToSpeechEnabled, false) end
+	end
+
+	-- Some builds show quick-start toasts
+	if _G.NarratorQuickStartToast then
+		_G.NarratorQuickStartToast:Hide()
+		_G.NarratorQuickStartToast.Show = function() end
+	end
+	if _G.SpeechToTextToast then
+		_G.SpeechToTextToast:Hide()
+		_G.SpeechToTextToast.Show = function() end
+	end
+end
+
+-- Run multiple times (Blizzard can re-enable when Accessibility UI loads)
+do
+	local f = CreateFrame("Frame")
+	f:RegisterEvent("PLAYER_LOGIN")
+	f:RegisterEvent("PLAYER_ENTERING_WORLD")
+	f:RegisterEvent("ADDON_LOADED")
+	f:SetScript("OnEvent", function(_, event, addon)
+		if event == "ADDON_LOADED" and addon ~= "Blizzard_AccessibilityUI" then return end
+		C_Timer.After(0, KillNarrator)
+		C_Timer.After(0.5, KillNarrator)
+		C_Timer.After(2.0, KillNarrator)
+	end)
+end
+
+-- Block the annoying overlay (this is NOT chat text; it’s a HelpTip)
+do
+	local orig = _G.HelpTip_Show
+	if type(orig) == "function" then
+		_G.HelpTip_Show = function(parent, info, relativeRegion, ...)
+			if info and type(info.text) == "string" then
+				local t = info.text:lower()
+				if t:find("synthèse vocale", 1, true)
+					or t:find("sous%-titres", 1, true)
+					or t:find("canal vocal", 1, true)
+					or t:find("speech", 1, true)
+					or t:find("transcription", 1, true)
+				then
+					return
+				end
+			end
+			return orig(parent, info, relativeRegion, ...)
+		end
+	end
+
+	C_Timer.After(0.5, function()
+		if HelpTip and HelpTip.HideAll then
+			HelpTip:HideAll()
+		end
+	end)
+end
+
+-- (Optional) filter system lines that still slip into chat sometimes
+local function FilterNarratorSpam(_, _, msg, ...)
+	if type(msg) == "string" then
+		if msg:find("La synthèse vocale vous permet", 1, true)
+			or msg:find("sous%-titres à un canal vocal", 1, true)
+			or msg:find("Speech to Text", 1, true)
+			or msg:find("Text to Speech", 1, true)
+		then
+			return true
+		end
+	end
+	return false, msg, ...
+end
+ChatFrameUtil.AddMessageEventFilter("CHAT_MSG_SYSTEM", FilterNarratorSpam)
+
 ----------------------------------------------------------------------------------------
 --	Style chat frame(by Tukz and p3lim)
 ----------------------------------------------------------------------------------------
@@ -19,29 +177,6 @@ local function AddMessage(self, text, ...)
 	return origs[self](self, text, ...)
 end
 
--- Global strings
--- _G.CHAT_INSTANCE_CHAT_GET = "|Hchannel:INSTANCE_CHAT|h["..L_CHAT_INSTANCE_CHAT.."]|h %s:\32"
--- _G.CHAT_INSTANCE_CHAT_LEADER_GET = "|Hchannel:INSTANCE_CHAT|h["..L_CHAT_INSTANCE_CHAT_LEADER.."]|h %s:\32"
--- _G.CHAT_BN_WHISPER_GET = L_CHAT_BN_WHISPER.." %s:\32"
--- _G.CHAT_GUILD_GET = "|Hchannel:GUILD|h["..L_CHAT_GUILD.."]|h %s:\32"
--- _G.CHAT_OFFICER_GET = "|Hchannel:OFFICER|h["..L_CHAT_OFFICER.."]|h %s:\32"
--- _G.CHAT_PARTY_GET = "|Hchannel:PARTY|h["..L_CHAT_PARTY.."]|h %s:\32"
--- _G.CHAT_PARTY_LEADER_GET = "|Hchannel:PARTY|h["..L_CHAT_PARTY_LEADER.."]|h %s:\32"
--- _G.CHAT_PARTY_GUIDE_GET = CHAT_PARTY_LEADER_GET
--- _G.CHAT_RAID_GET = "|Hchannel:RAID|h["..L_CHAT_RAID.."]|h %s:\32"
--- _G.CHAT_RAID_LEADER_GET = "|Hchannel:RAID|h["..L_CHAT_RAID_LEADER.."]|h %s:\32"
--- _G.CHAT_RAID_WARNING_GET = "["..L_CHAT_RAID_WARNING.."] %s:\32"
--- _G.CHAT_PET_BATTLE_COMBAT_LOG_GET = "|Hchannel:PET_BATTLE_COMBAT_LOG|h["..L_CHAT_PET_BATTLE.."]|h:\32"
--- _G.CHAT_PET_BATTLE_INFO_GET = "|Hchannel:PET_BATTLE_INFO|h["..L_CHAT_PET_BATTLE.."]|h:\32"
--- _G.CHAT_SAY_GET = "%s:\32"
--- _G.CHAT_WHISPER_GET = L_CHAT_WHISPER.." %s:\32"
--- _G.CHAT_YELL_GET = "%s:\32"
--- _G.CHAT_FLAG_AFK = "|cffE7E716"..L_CHAT_AFK.."|r "
--- _G.CHAT_FLAG_DND = "|cffFF0000"..L_CHAT_DND.."|r "
--- _G.CHAT_FLAG_GM = "|cff4154F5"..L_CHAT_GM.."|r "
--- _G.ERR_FRIEND_ONLINE_SS = "|Hplayer:%s|h[%s]|h "..L_CHAT_COME_ONLINE
--- _G.ERR_FRIEND_OFFLINE_S = "[%s] "..L_CHAT_GONE_OFFLINE
-
 -- Kill channel and voice buttons
 ChatFrameChannelButton:Kill()
 ChatFrameToggleVoiceDeafenButton:Kill()
@@ -54,17 +189,13 @@ local function SetChatStyle(frame)
 	local editBox = _G[chat.."EditBox"]
 
 	_G[chat]:SetFrameLevel(5)
-
-	-- Removes crap from the bottom of the chatbox so it can go to the bottom of the screen
 	_G[chat]:SetClampedToScreen(false)
-
-	-- Stop the chat chat from fading out
 	_G[chat]:SetFading(false)
 
 	-- Move the chat edit box
 	editBox:ClearAllPoints()
-	editBox:SetPoint("BOTTOMLEFT", ChatFrame1, "TOPLEFT", -10, 23)
-	editBox:SetPoint("BOTTOMRIGHT", ChatFrame1, "TOPRIGHT", 11, 23)
+	editBox:SetPoint("BOTTOMLEFT", frame, "TOPLEFT", -10, 23)
+	editBox:SetPoint("BOTTOMRIGHT", frame, "TOPRIGHT", 11, 23)
 
 	-- Hide textures
 	for j = 1, #CHAT_FRAME_TEXTURES do
@@ -88,7 +219,7 @@ local function SetChatStyle(frame)
 	_G[format("ChatFrame%sButtonFrameMinimizeButton", id)]:Kill()
 	_G[format("ChatFrame%sButtonFrame", id)]:Kill()
 
-	-- Kills off the retarded new circle around the editbox
+	-- Kills off the new circle around the editbox
 	_G[format("ChatFrame%sEditBoxLeft", id)]:Kill()
 	_G[format("ChatFrame%sEditBoxMid", id)]:Kill()
 	_G[format("ChatFrame%sEditBoxRight", id)]:Kill()
@@ -137,7 +268,6 @@ local function SetChatStyle(frame)
 			EditBoxBackground:SetBackdropBorderColor(r, g, b)
 		end
 
-		-- Update border color according where we talk
 		hooksecurefunc(editBox, "UpdateHeader", function()
 			local chatType = editBox:GetAttribute("chatType")
 			if not chatType then return end
@@ -164,7 +294,7 @@ local function SetChatStyle(frame)
 		CombatLogQuickButtonFrame_Custom.backdrop:SetPoint("BOTTOMRIGHT", -22, 0)
 		T.SkinCloseButton(CombatLogQuickButtonFrame_CustomAdditionalFilterButton, CombatLogQuickButtonFrame_Custom.backdrop, " ", true)
 		CombatLogQuickButtonFrame_CustomAdditionalFilterButton:SetSize(12, 12)
-		CombatLogQuickButtonFrame_CustomAdditionalFilterButton:SetHitRectInsets (0, 0, 0, 0)
+		CombatLogQuickButtonFrame_CustomAdditionalFilterButton:SetHitRectInsets(0, 0, 0, 0)
 		CombatLogQuickButtonFrame_CustomProgressBar:ClearAllPoints()
 		CombatLogQuickButtonFrame_CustomProgressBar:SetPoint("TOPLEFT", CombatLogQuickButtonFrame_Custom.backdrop, 2, -2)
 		CombatLogQuickButtonFrame_CustomProgressBar:SetPoint("BOTTOMRIGHT", CombatLogQuickButtonFrame_Custom.backdrop, -2, 2)
@@ -175,7 +305,7 @@ local function SetChatStyle(frame)
 	if _G[chat] ~= _G["ChatFrame2"] then
 		origs[_G[chat]] = _G[chat].AddMessage
 		_G[chat].AddMessage = AddMessage
-		-- Custom timestamps color
+
 		local color = C.chat.custom_time_color and T.RGBToHex(unpack(C.chat.time_color)) or ""
 		_G.TIMESTAMP_FORMAT_HHMM = color.."[%I:%M]|r "
 		_G.TIMESTAMP_FORMAT_HHMMSS = color.."[%I:%M:%S]|r "
@@ -196,12 +326,7 @@ local function SetupChat()
 	end
 
 	-- Remember last channel
-	local var
-	if C.chat.sticky == true then
-		var = 1
-	else
-		var = 0
-	end
+	local var = (C.chat.sticky == true) and 1 or 0
 	ChatTypeInfo.SAY.sticky = var
 	ChatTypeInfo.PARTY.sticky = var
 	ChatTypeInfo.PARTY_LEADER.sticky = var
@@ -222,18 +347,15 @@ local function SetupChatPosAndFont()
 		local id = chat:GetID()
 		local _, fontSize = FCF_GetChatWindowInfo(id)
 
-		-- Min. size for chat font
 		if fontSize < 11 then
 			FCF_SetChatWindowFontSize(nil, chat, 11)
 		else
 			FCF_SetChatWindowFontSize(nil, chat, fontSize)
 		end
 
-		-- Font and font style for chat
 		chat:SetFont(C.font.chat_font, fontSize, C.font.chat_font_style)
 		chat:SetShadowOffset(C.font.chat_font_shadow and 1 or 0, C.font.chat_font_shadow and -1 or 0)
 
-		-- Force chat position
 		if i == 1 then
 			chat:ClearAllPoints()
 			chat:SetSize(C.chat.width, C.chat.height)
@@ -257,7 +379,6 @@ local function SetupChatPosAndFont()
 		chat:SetScript("OnMouseWheel", FloatingChatFrame_OnMouseScroll)
 	end
 
-	-- Reposition Quick Join Toast
 	QuickJoinToastButton:ClearAllPoints()
 	QuickJoinToastButton:SetPoint("TOPLEFT", 0, 90)
 	QuickJoinToastButton.ClearAllPoints = T.dummy
@@ -276,18 +397,16 @@ local function SetupChatPosAndFont()
 	hooksecurefunc(QuickJoinToastButton, "ShowToast", function() QuickJoinToastButton.Toast.backdrop:Show() end)
 	hooksecurefunc(QuickJoinToastButton, "HideToast", function() QuickJoinToastButton.Toast.backdrop:Hide() end)
 
-	-- Reposition Battle.net popup
 	BNToastFrame:ClearAllPoints()
 	BNToastFrame:SetPoint(unpack(C.position.bn_popup))
 
-	hooksecurefunc(BNToastFrame, "SetPoint", function(self, _, anchor) -- not sure if it still needed
+	hooksecurefunc(BNToastFrame, "SetPoint", function(self, _, anchor)
 		if anchor ~= C.position.bn_popup[2] then
 			self:ClearAllPoints()
 			self:SetPoint(unpack(C.position.bn_popup))
 		end
 	end)
 
-	-- /run BNToastFrame:AddToast(BN_TOAST_TYPE_ONLINE, 1)
 	hooksecurefunc(BNToastFrame, "ShowToast", function(self)
 		if not self.IsSkinned then
 			T.SkinCloseButton(self.CloseButton, nil, "x")
@@ -296,17 +415,6 @@ local function SetupChatPosAndFont()
 		end
 	end)
 end
-
--- Reposition 3 chat frame tab if it don't fit to 1
--- for i = 3, Constants.ChatFrameConstants.MaxChatWindows do
-	-- local tab = _G[format("ChatFrame%sTab", i)]
-	-- hooksecurefunc(tab, "SetPoint", function(self, point, anchor, attachTo, x, y)
-		-- if anchor == GeneralDockManagerScrollFrameChild and y == -1 then
-			-- self:ClearAllPoints()
-			-- self:SetPoint(point, anchor, attachTo, x, -2)
-		-- end
-	-- end)
--- end
 
 GeneralDockManagerOverflowButton:SetPoint("BOTTOMRIGHT", ChatFrame1, "TOPRIGHT", 0, 5)
 hooksecurefunc(GeneralDockManagerScrollFrame, "SetPoint", function(self, point, anchor, attachTo, x, y)
@@ -330,7 +438,6 @@ UIChat:SetScript("OnEvent", function(self, event, addon)
 	end
 end)
 
--- Setup temp chat (BN, WHISPER) when needed
 local function SetupTempChat()
 	local frame = FCF_GetCurrentChatFrame()
 	if frame.skinned then return end
@@ -338,13 +445,11 @@ local function SetupTempChat()
 end
 hooksecurefunc("FCF_OpenTemporaryWindow", SetupTempChat)
 
--- Disable pet battle tab
 local old = FCFManager_GetNumDedicatedFrames
 function FCFManager_GetNumDedicatedFrames(...)
 	return select(1, ...) ~= "PET_BATTLE_COMBAT_LOG" and old(...) or 1
 end
 
--- Remove player's realm name
 local function RemoveRealmName(_, _, msg, author, ...)
 	local realm = string.gsub(T.realm, " ", "")
 	if msg:find("-" .. realm) then
@@ -380,7 +485,6 @@ if C.chat.loot_icons == true then
 		message = message:gsub("(\124c%x+\124Hitem:.-\124h\124r)", Icon)
 		return false, message, ...
 	end
-
 	ChatFrameUtil.AddMessageEventFilter("CHAT_MSG_LOOT", AddLootIcons)
 end
 
@@ -429,7 +533,7 @@ if C.chat.role_icons == true then
 
 	local role_tex = {
 		TANK = "\124T"..[[Interface\AddOns\ShestakUI\Media\Textures\Tank.tga]]..":12:12:0:0:64:64:5:59:5:59\124t",
-		HEALER	= "\124T"..[[Interface\AddOns\ShestakUI\Media\Textures\Healer.tga]]..":12:12:0:0:64:64:5:59:5:59\124t",
+		HEALER = "\124T"..[[Interface\AddOns\ShestakUI\Media\Textures\Healer.tga]]..":12:12:0:0:64:64:5:59:5:59\124t",
 		DAMAGER = "\124T"..[[Interface\AddOns\ShestakUI\Media\Textures\Damager.tga]]..":12:12:0:0:64:64:5:59:5:59\124t",
 	}
 
@@ -442,7 +546,7 @@ if C.chat.role_icons == true then
 				role = UnitGroupRolesAssigned(arg2:gsub(" *-[^-]+$",""))
 			end
 			if role and role ~= "NONE" then
-				ret = role_tex[role]..""..ret
+				ret = role_tex[role]..ret
 			end
 		end
 		return ret
@@ -450,11 +554,46 @@ if C.chat.role_icons == true then
 	_G.GetColoredName = GetColoredName_hook
 end
 
+
+-- --------------------------------------------------------------------
+-- Force ChatFrame3 tab (BUTIN) to stay on ChatBackgroundThird (Shestak)
+-- --------------------------------------------------------------------
+local function ForceThirdTab()
+	if not _G.ChatFrame3 or not _G.ChatFrame3Tab or not _G.ChatBackgroundThird then return end
+
+	local cf  = _G.ChatFrame3
+	local tab = _G.ChatFrame3Tab
+	local panel = _G.ChatBackgroundThird
+
+	-- 1) Undock hard (sinon Blizzard le garde dans le dock manager)
+	pcall(FCF_UnDockFrame, cf)
+	pcall(FCF_DockUpdate)
+
+	-- 2) Parent + points du TAB = comme tes autres headers
+	tab:SetParent(panel)
+	tab:ClearAllPoints()
+	tab:SetPoint("BOTTOMLEFT", panel, "TOPLEFT", 0, 0)
+	tab:SetPoint("BOTTOMRIGHT", panel, "TOPRIGHT", 0, 0)
+
+	-- 3) Recaler le texte du tab (sinon il flotte / s’offset)
+	if tab.Text then
+		tab.Text:ClearAllPoints()
+		tab.Text:SetPoint("CENTER", tab, "CENTER", 0, -1)
+		tab.Text:Show()
+	end
+
+	-- 4) Forcer visible (certains setups Shestak mettent alpha 0)
+	tab:SetAlpha(1)
+	tab:Show()
+	tab:EnableMouse(true)
+end
+
+
 ----------------------------------------------------------------------------------------
 --	Prevent reposition ChatFrame
 ----------------------------------------------------------------------------------------
 hooksecurefunc(ChatFrame1, "SetPoint", function(self, _, _, _, x)
-	if MoverInfo and MoverInfo:IsShown() then return end -- Allow to /moveui
+	if MoverInfo and MoverInfo:IsShown() then return end
 	local positionTable = T.CurrentProfile()
 	if positionTable["ChatFrame1"] then
 		local _, _, _, newx = unpack(positionTable["ChatFrame1"])
@@ -477,11 +616,20 @@ hooksecurefunc(ChatFrame1, "SetPoint", function(self, _, _, _, x)
 end)
 
 ----------------------------------------------------------------------------------------
---	Right chat frame
+--  Right chat frame + THIRD chat (left) + hyperlinks fix
 ----------------------------------------------------------------------------------------
 if not C.chat.second_frame then return end
+
+----------------------------------------------------------------------------------------
+--  RIGHT ANCHOR (ChatFrame4)
+----------------------------------------------------------------------------------------
 local rightAnchor = CreateFrame("Frame", "ChatFrameRightAnchor", UIParent)
 rightAnchor:SetSize(C.chat.width, C.chat.height)
+rightAnchor:EnableMouse(false)
+rightAnchor:EnableMouseWheel(false)
+rightAnchor:SetFrameStrata("BACKGROUND")
+rightAnchor:SetFrameLevel(0)
+
 if C.minimap.on_top then
 	if C.chat.background == true then
 		rightAnchor:SetPoint(C.position.chat_right[1], C.position.chat_right[2], C.position.chat_right[3], C.position.chat_right[4], C.position.chat_right[5] + 4)
@@ -511,7 +659,187 @@ C_Timer.After(0.1, function()
 	if ChatFrame4 then
 		FCF_UnDockFrame(ChatFrame4)
 		ChatFrame4:SetAllPoints(rightAnchor)
+
+		ChatFrame4:SetFrameStrata("LOW")
+		ChatFrame4:SetFrameLevel(50)
+		ChatFrame4:EnableMouse(true)
+		if ChatFrame4.SetHyperlinksEnabled then ChatFrame4:SetHyperlinksEnabled(true) end
+		if ChatFrame4.FontStringContainer then
+			ChatFrame4.FontStringContainer:EnableMouse(true)
+			ChatFrame4.FontStringContainer:SetFrameStrata("LOW")
+			ChatFrame4.FontStringContainer:SetFrameLevel(51)
+		end
+
 		FCF_SetTabPosition(ChatFrame4, 0)
 		FCF_CheckShowChatFrame(ChatFrame4)
 	end
 end)
+
+----------------------------------------------------------------------------------------
+--  Helpers: do not let panels steal clicks
+----------------------------------------------------------------------------------------
+local function DisableMouseDeep(frame)
+	if not frame then return end
+	if frame.EnableMouse then pcall(frame.EnableMouse, frame, false) end
+	if frame.EnableMouseWheel then pcall(frame.EnableMouseWheel, frame, false) end
+	if frame.SetScript then
+		for _, s in ipairs({
+			"OnMouseDown", "OnMouseUp", "OnClick",
+			"OnEnter", "OnLeave", "OnMouseWheel"
+		}) do
+			pcall(frame.SetScript, frame, s, nil)
+		end
+	end
+	local kids = { frame:GetChildren() }
+	for i = 1, #kids do
+		DisableMouseDeep(kids[i])
+	end
+end
+
+----------------------------------------------------------------------------------------
+--  THIRD CHAT (ChatFrame3 = BUTIN) - left of ChatFrame1, Shestak style, width dedicated
+----------------------------------------------------------------------------------------
+local GAP = 10
+local BASE_W = tonumber(C.chat.width) or 420
+local BASE_H = tonumber(C.chat.height) or 180
+
+-- ✅ Réglage simple : largeur BUTIN (change ce ratio)
+local LOOT_W = math.floor(BASE_W * 1.1)
+local LOOT_H = BASE_H
+
+local leftAnchor = CreateFrame("Frame", "ChatFrameLeftAnchor", UIParent)
+leftAnchor:SetSize(LOOT_W, LOOT_H)
+leftAnchor:EnableMouse(false)
+leftAnchor:EnableMouseWheel(false)
+leftAnchor:SetFrameStrata("BACKGROUND")
+leftAnchor:SetFrameLevel(0)
+
+
+local ChatBackgroundThird = CreateFrame("Frame", "ChatBackgroundThird", UIParent)
+ChatBackgroundThird:EnableMouse(false)
+ChatBackgroundThird:EnableMouseWheel(false)
+ChatBackgroundThird:SetFrameStrata("BACKGROUND")
+ChatBackgroundThird:SetFrameLevel(0)
+ChatBackgroundThird:CreatePanel("Transparent", LOOT_W, LOOT_H, "BOTTOMLEFT", leftAnchor, "BOTTOMLEFT", 0, 0)
+
+
+
+-- Run several times because Blizzard keeps reattaching tabs after login / world enter / dock updates
+local thirdTabFixer = CreateFrame("Frame")
+thirdTabFixer:RegisterEvent("PLAYER_LOGIN")
+thirdTabFixer:RegisterEvent("PLAYER_ENTERING_WORLD")
+thirdTabFixer:RegisterEvent("UPDATE_CHAT_WINDOWS")
+thirdTabFixer:SetScript("OnEvent", function()
+	C_Timer.After(0.1, ForceThirdTab)
+	C_Timer.After(0.6, ForceThirdTab)
+	C_Timer.After(1.5, ForceThirdTab)
+end)
+
+-- Also when chat docking refreshes
+hooksecurefunc("FCF_DockUpdate", function()
+	C_Timer.After(0, ForceThirdTab)
+end)
+
+
+local function SetupThirdChat()
+	local cf = _G.ChatFrame3
+	if not cf or not _G.ChatFrame1 then return end
+
+	leftAnchor:ClearAllPoints()
+	leftAnchor:SetPoint("BOTTOMRIGHT", ChatFrame1, "BOTTOMLEFT", -GAP, 0)
+
+	DisableMouseDeep(ChatBackgroundThird)
+
+	pcall(FCF_UnDockFrame, cf)
+
+	if not cf.skinned then
+		SetChatStyle(cf)
+	end
+
+	-- Place inside panel
+	cf:ClearAllPoints()
+	cf:SetPoint("TOPLEFT", ChatBackgroundThird, "TOPLEFT", 5, -5)
+	cf:SetPoint("BOTTOMRIGHT", ChatBackgroundThird, "BOTTOMRIGHT", -5, 5)
+
+	-- Clickable + hyperlinks
+	cf:SetFrameStrata("LOW")
+	cf:SetFrameLevel(50)
+	cf:EnableMouse(true)
+	if cf.SetHyperlinksEnabled then pcall(cf.SetHyperlinksEnabled, cf, true) end
+
+	if cf.FontStringContainer then
+		cf.FontStringContainer:EnableMouse(true)
+		cf.FontStringContainer:SetFrameStrata("LOW")
+		cf.FontStringContainer:SetFrameLevel(51)
+	end
+
+	-- Wrap behavior to avoid “looks like overflow”
+	if cf.SetIndentedWordWrap then pcall(cf.SetIndentedWordWrap, cf, true) end
+	if cf.SetJustifyH then pcall(cf.SetJustifyH, cf, "LEFT") end
+
+
+	pcall(FCF_SavePositionAndDimensions, cf)
+	pcall(FCF_SetTabPosition, cf, 0)
+	pcall(FCF_CheckShowChatFrame, cf)
+	ForceThirdTab()
+end
+
+do
+	local f = CreateFrame("Frame")
+	f:RegisterEvent("PLAYER_LOGIN")
+	f:RegisterEvent("PLAYER_ENTERING_WORLD")
+	f:SetScript("OnEvent", function()
+		C_Timer.After(0.3, SetupThirdChat)
+		C_Timer.After(1.0, SetupThirdChat)
+		C_Timer.After(3.0, SetupThirdChat)
+	end)
+end
+
+----------------------------------------------------------------------------------------
+--  HARD FIX: Hyperlinks clickable (all chat frames + containers)
+----------------------------------------------------------------------------------------
+local function SetLinkScripts(frame)
+	if not frame then return end
+	if frame.EnableMouse then pcall(frame.EnableMouse, frame, true) end
+	if frame.SetHyperlinksEnabled then pcall(frame.SetHyperlinksEnabled, frame, true) end
+
+	if type(ChatFrame_OnlyHyperlinkShow) == "function" then
+		pcall(frame.SetScript, frame, "OnHyperlinkClick", ChatFrame_OnlyHyperlinkShow)
+	elseif type(ChatFrame_OnHyperlinkShow) == "function" then
+		pcall(frame.SetScript, frame, "OnHyperlinkClick", ChatFrame_OnHyperlinkShow)
+	end
+
+	if type(ChatFrameHyperlink_OnEnter) == "function" then
+		pcall(frame.SetScript, frame, "OnHyperlinkEnter", ChatFrameHyperlink_OnEnter)
+	end
+	if type(ChatFrameHyperlink_OnLeave) == "function" then
+		pcall(frame.SetScript, frame, "OnHyperlinkLeave", ChatFrameHyperlink_OnLeave)
+	end
+end
+
+local function FixChatLinksOnce()
+	for i = 1, Constants.ChatFrameConstants.MaxChatWindows do
+		local cf = _G["ChatFrame"..i]
+		if cf then
+			SetLinkScripts(cf)
+			if cf.FontStringContainer then
+				SetLinkScripts(cf.FontStringContainer)
+			end
+		end
+	end
+end
+
+do
+	local f = CreateFrame("Frame")
+	f:RegisterEvent("PLAYER_LOGIN")
+	f:RegisterEvent("PLAYER_ENTERING_WORLD")
+	f:SetScript("OnEvent", function()
+		C_Timer.After(0.2, FixChatLinksOnce)
+		C_Timer.After(1.0, FixChatLinksOnce)
+		C_Timer.After(3.0, FixChatLinksOnce)
+	end)
+
+	hooksecurefunc("FCF_OpenTemporaryWindow", function()
+		C_Timer.After(0, FixChatLinksOnce)
+	end)
+end

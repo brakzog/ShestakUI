@@ -593,14 +593,15 @@ Maw:HookScript("OnClick", function(container)
 end)
 
 ----------------------------------------------------------------------------------------
--- TRUE 3 COLUMNS (hard detach) - Campaign / Quests / Achievements
+-- TRUE 3 COLUMNS (hard detach + STACK inside each column)  [stable on follow/collapse]
 ----------------------------------------------------------------------------------------
 local COL_W = 240
 local COL_H = T.screenHeight / 1.6
-local GAP = 25
+local COL_GAP_X = 25
+local TRACKER_GAP_Y = 10
 
 -- We only use ObjectiveTrackerFrame as an update trigger; columns are independent.
-ObjectiveTrackerFrame:SetWidth(COL_W * 3 + GAP * 2)
+ObjectiveTrackerFrame:SetWidth(COL_W * 3 + COL_GAP_X * 2)
 
 -- Create independent containers aligned on Shestak's anchor
 local col1 = CreateFrame("Frame", nil, UIParent)
@@ -609,92 +610,181 @@ col1:SetPoint("TOPLEFT", anchor, "TOPLEFT", 20, 3)
 
 local col2 = CreateFrame("Frame", nil, UIParent)
 col2:SetSize(COL_W, COL_H)
-col2:SetPoint("TOPLEFT", col1, "TOPRIGHT", GAP, 0)
+col2:SetPoint("TOPLEFT", col1, "TOPRIGHT", COL_GAP_X, 0)
 
 local col3 = CreateFrame("Frame", nil, UIParent)
 col3:SetSize(COL_W, COL_H)
-col3:SetPoint("TOPLEFT", col2, "TOPRIGHT", GAP, 0)
+col3:SetPoint("TOPLEFT", col2, "TOPRIGHT", COL_GAP_X, 0)
 
-local function DetachTracker(tracker, parentFrame)
+-- ------------------------------------------------------------
+-- Safe hook helper
+-- ------------------------------------------------------------
+local function SafeHook(obj, method, fn)
+	if obj and type(obj[method]) == "function" then
+		hooksecurefunc(obj, method, fn)
+		return true
+	end
+	return false
+end
+
+-- ------------------------------------------------------------
+-- Tracker hard lock (parent + exact anchor)
+-- We store desired y on tracker._threecol_y, and enforce it.
+-- ------------------------------------------------------------
+local function LockTracker(tracker, parentFrame)
+	if not tracker or tracker._threecol_locked then return end
+	tracker._threecol_locked = true
+	tracker._threecol_parent = parentFrame
+
+	hooksecurefunc(tracker, "SetPoint", function(self, point, relativeTo, relativePoint, xOfs, yOfs)
+		local p = self._threecol_parent
+		if not p then return end
+
+		-- Restore parent if Blizzard changes it
+		if self:GetParent() ~= p then
+			self:SetParent(p)
+		end
+
+		point = point or ""
+		relativePoint = relativePoint or ""
+		xOfs = xOfs or 0
+		yOfs = yOfs or 0
+
+		local wantY = self._threecol_y or 0
+
+		-- Enforce our anchor forever
+		if relativeTo ~= p or point ~= "TOPLEFT" or relativePoint ~= "TOPLEFT" or xOfs ~= 0 or yOfs ~= wantY then
+			self:ClearAllPoints()
+			self:SetPoint("TOPLEFT", p, "TOPLEFT", 0, wantY)
+		end
+	end)
+
+	-- Re-layout on collapse/expand (heights change)
+	if tracker.SetCollapsed then
+		hooksecurefunc(tracker, "SetCollapsed", function()
+			C_Timer.After(0, function()
+				ApplyHardColumns()
+			end)
+		end)
+	end
+	if tracker.Header and tracker.Header.MinimizeButton then
+		tracker.Header.MinimizeButton:HookScript("OnClick", function()
+			C_Timer.After(0, function()
+				ApplyHardColumns()
+			end)
+		end)
+	end
+end
+
+local function AttachTracker(tracker, parentFrame)
 	if not tracker then return end
 
 	tracker._threecol_parent = parentFrame
-
 	tracker:SetParent(parentFrame)
-	tracker:ClearAllPoints()
-	tracker:SetPoint("TOPLEFT", parentFrame, "TOPLEFT", 0, 0)
-	tracker:SetWidth(COL_W)
 	tracker:SetClampedToScreen(false)
+	tracker:SetWidth(COL_W)
 	tracker:Show()
 
-	-- Lock its position forever (Blizzard loves to move it back)
-	if not tracker._threecol_locked then
-		tracker._threecol_locked = true
+	LockTracker(tracker, parentFrame)
+end
 
-		hooksecurefunc(tracker, "SetPoint", function(self, point, relativeTo, relativePoint, xOfs, yOfs)
-			local p = self._threecol_parent
-			if not p then return end
+local function StackInColumn(parentFrame, list)
+	local y = 0
 
-			-- If Blizzard changed parent, restore it
-			if self:GetParent() ~= p then
-				self:SetParent(p)
-			end
+	for i = 1, #list do
+		local tr = list[i]
+		if tr and tr:IsShown() then
+			AttachTracker(tr, parentFrame)
 
-			point = point or ""
-			relativePoint = relativePoint or ""
-			xOfs = xOfs or 0
-			yOfs = yOfs or 0
+			tr._threecol_y = y
+			tr:ClearAllPoints()
+			tr:SetPoint("TOPLEFT", parentFrame, "TOPLEFT", 0, y)
 
-			-- Always enforce our anchor
-			if relativeTo ~= p or point ~= "TOPLEFT" or relativePoint ~= "TOPLEFT" or xOfs ~= 0 or yOfs ~= 0 then
-				self:ClearAllPoints()
-				self:SetPoint("TOPLEFT", p, "TOPLEFT", 0, 0)
-			end
-		end)
-
-		-- Re-apply after collapsing/expanding this tracker
-		if tracker.SetCollapsed then
-			hooksecurefunc(tracker, "SetCollapsed", function()
-				C_Timer.After(0, ApplyHardColumns)
-			end)
-		end
-
-		-- Also catch the minimize button click if present
-		if tracker.Header and tracker.Header.MinimizeButton then
-			tracker.Header.MinimizeButton:HookScript("OnClick", function()
-				C_Timer.After(0, ApplyHardColumns)
-			end)
+			-- move down by actual height + gap
+			local h = tr:GetHeight() or 0
+			if h < 1 then h = 1 end
+			y = y - h - TRACKER_GAP_Y
 		end
 	end
 end
+
+-- Choose what goes in each column (order = top -> bottom)
+local COL1 = {
+	CampaignQuestObjectiveTracker,
+	ScenarioObjectiveTracker,
+	UIWidgetObjectiveTracker,
+}
+
+local COL2 = {
+	QuestObjectiveTracker,
+	BonusObjectiveTracker,
+	AdventureObjectiveTracker,
+	ProfessionsRecipeTracker,
+	WorldQuestObjectiveTracker,
+}
+
+local COL3 = {
+	AchievementObjectiveTracker,
+	MonthlyActivitiesObjectiveTracker,
+}
 
 local applying = false
 function ApplyHardColumns()
 	if applying then return end
 	applying = true
 
-	DetachTracker(CampaignQuestObjectiveTracker, col1)
-	DetachTracker(QuestObjectiveTracker, col2)
-	DetachTracker(AchievementObjectiveTracker, col3)
+	-- First pass: rough stack
+	StackInColumn(col1, COL1)
+	StackInColumn(col2, COL2)
+	StackInColumn(col3, COL3)
 
-	C_Timer.After(0, function() applying = false end)
+	-- Second pass next frame: heights are correct after Blizzard updates (collapse/follow)
+	C_Timer.After(0, function()
+		StackInColumn(col1, COL1)
+		StackInColumn(col2, COL2)
+		StackInColumn(col3, COL3)
+		applying = false
+	end)
 end
 
--- Prevent Blizzard from reattaching them
-hooksecurefunc(ObjectiveTrackerFrame, "Update", function()
-	C_Timer.After(0, ApplyHardColumns)
-end)
+-- ------------------------------------------------------------
+-- Reapply hard columns after any Blizzard relayout (follow quest, etc.)
+-- Debounced to avoid fights / spam
+-- ------------------------------------------------------------
+local reapplyQueued = false
+local function ReapplySoon()
+	if reapplyQueued then return end
+	reapplyQueued = true
+	C_Timer.After(0, function()
+		reapplyQueued = false
+		ApplyHardColumns()
+	end)
+end
 
+-- Hooks depending on what exists in your version
+SafeHook(ObjectiveTrackerFrame, "Update", ReapplySoon)
+SafeHook(ObjectiveTrackerFrame, "OnContentsChanged", ReapplySoon)
+SafeHook(ObjectiveTrackerFrame, "UpdateModule", ReapplySoon)
+
+if type(ObjectiveTracker_Update) == "function" then
+	hooksecurefunc("ObjectiveTracker_Update", ReapplySoon)
+end
+
+-- Events commonly triggered by “follow” / watch list changes
+local ev = CreateFrame("Frame")
+ev:RegisterEvent("PLAYER_LOGIN")
+ev:RegisterEvent("PLAYER_ENTERING_WORLD")
+ev:RegisterEvent("SUPER_TRACKING_CHANGED")
+ev:RegisterEvent("QUEST_WATCH_LIST_CHANGED")
+ev:RegisterEvent("QUEST_ACCEPTED")
+ev:RegisterEvent("QUEST_REMOVED")
+ev:RegisterEvent("SCENARIO_UPDATE")
+ev:SetScript("OnEvent", function()
+	C_Timer.After(0.15, ApplyHardColumns)
+end)
 local f = CreateFrame("Frame")
 f:RegisterEvent("PLAYER_ENTERING_WORLD")
 f:RegisterEvent("PLAYER_LOGIN")
 f:SetScript("OnEvent", function()
 	C_Timer.After(0.2, ApplyHardColumns)
 end)
-
--- Re-apply after clicking the GLOBAL minimize button too (top of the tracker)
-if ObjectiveTrackerFrame and ObjectiveTrackerFrame.Header and ObjectiveTrackerFrame.Header.MinimizeButton then
-	ObjectiveTrackerFrame.Header.MinimizeButton:HookScript("OnClick", function()
-		C_Timer.After(0, ApplyHardColumns)
-	end)
-end
