@@ -1,5 +1,5 @@
 local T, C, L = unpack(ShestakUI)
-if C.unitframe.enable ~= true or C.raidframe.plugins_aura_watch ~= true then return end
+if C.unitframe.enable ~= true or C.raidframe.plugins_buffs ~= true then return end
 
 ----------------------------------------------------------------------------------------
 --	Based on oUF_AuraWatch(by Astromech)
@@ -113,6 +113,7 @@ local function Update(frame, _, unit)
 	local key, icon
 	local guid = UnitGUID(unit)
 	if not guid then return end
+	if T.IsSecretValue(guid) then return end
 	if not GUIDs[guid] then setupGUID(guid) end
 
 	for _, icon in pairs(icons) do

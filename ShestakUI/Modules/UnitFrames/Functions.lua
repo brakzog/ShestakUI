@@ -205,7 +205,11 @@ T.PostUpdateHealthColor = function(health, unit, color)
 			if C.unitframe.own_color then
 				r, g, b = C.unitframe.uf_color[1], C.unitframe.uf_color[2], C.unitframe.uf_color[3]
 			else
-				r, g, b = health:GetStatusBarColor()
+				if color then
+					r, g, b = color:GetRGB()
+				else
+					r, g, b = 0.3, 0.7, 0.3
+				end
 			end
 
 			local curve = C_CurveUtil.CreateColorCurve()
@@ -320,7 +324,11 @@ T.PostUpdateRaidHealthColor = function(health, unit, color)
 			if C.unitframe.own_color then
 				r, g, b = C.unitframe.uf_color[1], C.unitframe.uf_color[2], C.unitframe.uf_color[3]
 			else
-				r, g, b = health:GetStatusBarColor()
+				if color then
+					r, g, b = color:GetRGB()
+				else
+					r, g, b = 0.3, 0.7, 0.3
+				end
 			end
 
 			local curve = C_CurveUtil.CreateColorCurve()
@@ -490,32 +498,6 @@ T.PostUpdatePowerColor = function(power, unit, color, altR, altG, altB)
 	end
 end
 
--- local SetUpAnimGroup = function(self)
-	-- self.anim = self:CreateAnimationGroup()
-	-- self.anim:SetLooping("BOUNCE")
-	-- self.anim.fade = self.anim:CreateAnimation("Alpha")
-	-- self.anim.fade:SetFromAlpha(1)
-	-- self.anim.fade:SetToAlpha(0)
-	-- self.anim.fade:SetDuration(0.6)
-	-- self.anim.fade:SetSmoothing("IN_OUT")
--- end
-
--- local Flash = function(self)
-	-- if not self.anim then
-		-- SetUpAnimGroup(self)
-	-- end
-
-	-- if not self.anim:IsPlaying() then
-		-- self.anim:Play()
-	-- end
--- end
-
--- local StopFlash = function(self)
-	-- if self.anim then
-		-- self.anim:Finish()
-	-- end
--- end
-
 local low_mana = C_CurveUtil.CreateColorCurve()
 low_mana:SetType(Enum.LuaCurveType.Step)
 AddCurvePoint(low_mana, 0, CreateColor(1, 1, 1, 1))
@@ -527,28 +509,15 @@ T.UpdateManaLevel = function(self, elapsed)
 	self.elapsed = 0
 
 	if UnitPowerType("player") == 0 then
-		-- local cur = UnitPower("player", 0) -- BETA can't calculate
-		-- local max = UnitPowerMax("player", 0)
-		-- local percMana = max > 0 and (cur / max * 100) or 100
-		-- if percMana <= 20 and not UnitIsDeadOrGhost("player") then
-			-- self.ManaLevel:SetText("|cffaf5050"..MANA_LOW.."|r")
-			-- Flash(self)
-		-- else
-			-- self.ManaLevel:SetText()
-			-- StopFlash(self)
-		-- end
-
 		if UnitIsDeadOrGhost("player") then
-			self.ManaLevel:SetText()
+			self.Text:SetAlpha(0)
 		else
 			local color = UnitPowerPercent("player", 0, true, low_mana)
 			local _, _, _, alpha = color:GetRGBA()
-			self.ManaLevel:SetText("|cffaf5050"..MANA_LOW.."|r")
-			self.ManaLevel:SetAlpha(alpha)
+			self.Text:SetAlpha(alpha)
 		end
 	elseif T.class ~= "DRUID" and T.class ~= "PRIEST" and T.class ~= "SHAMAN" then
-		self.ManaLevel:SetText()
-		-- StopFlash(self)
+		self.Text:SetAlpha(0)
 	end
 end
 
@@ -565,44 +534,27 @@ T.UpdateClassMana = function(self, elapsed)
 	if self.unit ~= "player" then return end
 
 	if UnitPowerType("player") ~= 0 then
-		-- local min = UnitPower("player", 0) -- BETA can't calculate
-		-- local max = UnitPowerMax("player", 0)
-		-- local percMana = max > 0 and (min / max * 100) or 100
-		local percMana = UnitPowerPercent("player", 0, true, CurveConstants.ScaleTo100)
-		-- if percMana <= 20 and not UnitIsDeadOrGhost("player") then
-			-- self.FlashInfo.ManaLevel:SetText("|cffaf5050"..MANA_LOW.."|r")
-			-- Flash(self.FlashInfo)
-		-- else
-			-- self.FlashInfo.ManaLevel:SetText()
-			-- StopFlash(self.FlashInfo)
-		-- end
-
 		if UnitIsDeadOrGhost("player") then
 			self.ClassMana:SetAlpha(0)
-			self.FlashInfo.ManaLevel:SetText()
+			self.LowMana.Text:SetAlpha(0)
 		else
 			local color = UnitPowerPercent("player", 0, true, low_mana)
 			local _, _, _, alpha = color:GetRGBA()
-			self.FlashInfo.ManaLevel:SetText("|cffaf5050"..MANA_LOW.."|r")
-			self.FlashInfo.ManaLevel:SetAlpha(alpha)
+			self.LowMana.Text:SetAlpha(alpha)
 
 			local color = UnitPowerPercent("player", 0, true, full_mana)
 			local _, _, _, alpha = color:GetRGBA()
-
-			-- if min ~= max then
-				if self.Power.value:GetText() then
-					self.ClassMana:SetPoint("RIGHT", self.Power.value, "LEFT", -1, 0)
-					self.ClassMana:SetFormattedText("%d%%|r |cffD7BEA5-|r", percMana)
-					self.ClassMana:SetJustifyH("RIGHT")
-				else
-					self.ClassMana:SetPoint("LEFT", self.Power, "LEFT", 4, 0)
-					self.ClassMana:SetFormattedText("%d%%", percMana)
-				end
-			-- else
-				-- self.ClassMana:SetText()
-			-- end
-
 			self.ClassMana:SetAlpha(alpha)
+
+			local percMana = UnitPowerPercent("player", 0, true, CurveConstants.ScaleTo100)
+			if self.Power.value:GetText() then
+				self.ClassMana:SetPoint("RIGHT", self.Power.value, "LEFT", -1, 0)
+				self.ClassMana:SetFormattedText("%d%%|r |cffD7BEA5-|r", percMana)
+				self.ClassMana:SetJustifyH("RIGHT")
+			else
+				self.ClassMana:SetPoint("LEFT", self.Power, "LEFT", 4, 0)
+				self.ClassMana:SetFormattedText("%d%%", percMana)
+			end
 		end
 	else
 		self.ClassMana:SetAlpha(0)
@@ -791,21 +743,21 @@ T.PostUpdatePips = function(element)
 	end
 end
 
-T.AuraTrackerTime = function(self, elapsed)
-	if self.active then
-		self.timeleft = self.timeleft - elapsed
-		if self.timeleft <= 5 then
-			self.text:SetTextColor(1, 0, 0)
-		else
-			self.text:SetTextColor(1, 1, 1)
-		end
-		if self.timeleft <= 0 then
-			self.icon:SetTexture("")
-			self.text:SetText("")
-		end
-		self.text:SetFormattedText("%.1f", self.timeleft)
-	end
-end
+--BETA T.AuraTrackerTime = function(self, elapsed)
+	-- if self.active then
+		-- self.timeleft = self.timeleft - elapsed
+		-- if self.timeleft <= 5 then
+			-- self.text:SetTextColor(1, 0, 0)
+		-- else
+			-- self.text:SetTextColor(1, 1, 1)
+		-- end
+		-- if self.timeleft <= 0 then
+			-- self.icon:SetTexture("")
+			-- self.text:SetText("")
+		-- end
+		-- self.text:SetFormattedText("%.1f", self.timeleft)
+	-- end
+-- end
 
 T.PostCreateIcon = function(_, button)
 	button:SetTemplate("Default")
@@ -915,7 +867,7 @@ T.PostUpdateRaidButton = function(_, button, unit, data)
 		button:SetBackdropBorderColor(1, 0, 0)
 	end
 
-	button.Cooldown:SetHideCountdownNumbers(not C.raidframe.plugins_aura_watch_timer)
+	button.Cooldown:SetHideCountdownNumbers(not C.raidframe.plugins_debuffs_timer)
 end
 
 local CountOffSets = {
@@ -1006,72 +958,106 @@ T.CreateAuraWatch = function(self)
 	self.AuraWatch = auras
 end
 
-T.CreateHealthPrediction = function(self)
+T.CreateHealthPrediction = function(self, vertical)
 	-- Player healing
 	local mhpb = CreateFrame("StatusBar", nil, self.Health)
-	mhpb:SetPoint("TOPLEFT", self.Health:GetStatusBarTexture(), "TOPRIGHT", 0, 0)
-	mhpb:SetPoint("BOTTOMLEFT", self.Health:GetStatusBarTexture(), "BOTTOMRIGHT", 0, 0)
+	if vertical then
+		mhpb:SetPoint("BOTTOMLEFT", self.Health:GetStatusBarTexture(), "TOPLEFT", 0, 0)
+		mhpb:SetPoint("BOTTOMRIGHT", self.Health:GetStatusBarTexture(), "TOPRIGHT", 0, 0)
+		mhpb:SetOrientation("VERTICAL")
+	else
+		mhpb:SetPoint("TOPLEFT", self.Health:GetStatusBarTexture(), "TOPRIGHT", 0, 0)
+		mhpb:SetPoint("BOTTOMLEFT", self.Health:GetStatusBarTexture(), "BOTTOMRIGHT", 0, 0)
+	end
 	mhpb:SetStatusBarTexture(C.media.texture)
 	mhpb:SetStatusBarColor(0, 1, 0.5, 0.2)
+	self.Health.HealingPlayer = mhpb
 
 	-- Other healing
 	local ohpb = CreateFrame("StatusBar", nil, self.Health)
-	ohpb:SetPoint("TOPLEFT", mhpb:GetStatusBarTexture(), "TOPRIGHT", 0, 0)
-	ohpb:SetPoint("BOTTOMLEFT", mhpb:GetStatusBarTexture(), "BOTTOMRIGHT", 0, 0)
+	if vertical then
+		ohpb:SetPoint("BOTTOMLEFT", mhpb:GetStatusBarTexture(), "TOPLEFT", 0, 0)
+		ohpb:SetPoint("BOTTOMRIGHT", mhpb:GetStatusBarTexture(), "TOPRIGHT", 0, 0)
+		ohpb:SetOrientation("VERTICAL")
+	else
+		ohpb:SetPoint("TOPLEFT", mhpb:GetStatusBarTexture(), "TOPRIGHT", 0, 0)
+		ohpb:SetPoint("BOTTOMLEFT", mhpb:GetStatusBarTexture(), "BOTTOMRIGHT", 0, 0)
+	end
 	ohpb:SetStatusBarTexture(C.media.texture)
 	ohpb:SetStatusBarColor(0, 1, 0, 0.2)
+	self.Health.HealingOther = ohpb
 
 	-- Absorb
 	local absorb = CreateFrame("StatusBar", nil, self.Health)
-	absorb:SetPoint("TOPLEFT", ohpb:GetStatusBarTexture(), "TOPRIGHT", 0, 0)
-	absorb:SetPoint("BOTTOMLEFT", ohpb:GetStatusBarTexture(), "BOTTOMRIGHT", 0, 0)
+	if vertical then
+		absorb:SetPoint("BOTTOMLEFT", ohpb:GetStatusBarTexture(), "TOPLEFT", 0, 0)
+		absorb:SetPoint("BOTTOMRIGHT", ohpb:GetStatusBarTexture(), "TOPRIGHT", 0, 0)
+		absorb:SetOrientation("VERTICAL")
+	else
+		absorb:SetPoint("TOPLEFT", ohpb:GetStatusBarTexture(), "TOPRIGHT", 0, 0)
+		absorb:SetPoint("BOTTOMLEFT", ohpb:GetStatusBarTexture(), "BOTTOMRIGHT", 0, 0)
+	end
 	absorb:SetStatusBarTexture(C.media.texture)
 	absorb:SetStatusBarColor(1, 1, 0, 0.2)
+	self.Health.DamageAbsorb = absorb
 
 	-- From enemy - heal absorb
 	local hab = CreateFrame("StatusBar", nil, self.Health)
-	hab:SetPoint("TOPRIGHT", self.Health:GetStatusBarTexture(), "TOPRIGHT", 0, 0)
-	hab:SetPoint("BOTTOMRIGHT", self.Health:GetStatusBarTexture(), "BOTTOMRIGHT", 0, 0)
+	if vertical then
+		hab:SetPoint("TOPLEFT", self.Health:GetStatusBarTexture(), "TOPLEFT", 0, 0)
+		hab:SetPoint("TOPRIGHT", self.Health:GetStatusBarTexture(), "TOPRIGHT", 0, 0)
+		hab:SetOrientation("VERTICAL")
+	else
+		hab:SetPoint("TOPRIGHT", self.Health:GetStatusBarTexture(), "TOPRIGHT", 0, 0)
+		hab:SetPoint("BOTTOMRIGHT", self.Health:GetStatusBarTexture(), "BOTTOMRIGHT", 0, 0)
+	end
 	hab:SetStatusBarTexture(C.media.texture)
 	hab:SetStatusBarColor(1, 0, 0, 0.4)
 	hab:SetReverseFill(true)
+	self.Health.HealAbsorb = hab
 
-	self.HealthPrediction = {
-		healingPlayer = mhpb,
-		healingOther = ohpb,
-		damageAbsorb = absorb,
-		healAbsorb = hab,
-		incomingHealOverflow = 1
-	}
+	self.Health.incomingHealOverflow = 1
 
 	-- Over absorb in right
 	if C.raidframe.plugins_over_absorb then
 		local oa = self.Health:CreateTexture(nil, "ARTWORK")
 		oa:SetTexture([[Interface\AddOns\ShestakUI\Media\Textures\Cross.tga]], "REPEAT", "REPEAT")
-		oa:SetPoint("TOPLEFT", self.Health, "TOPRIGHT", -6, 0)
-		oa:SetPoint("BOTTOMLEFT", self.Health, "BOTTOMRIGHT", -6, 0)
+		if vertical then
+			oa:SetPoint("TOPLEFT", self.Health, "TOPLEFT", 0, 0)
+			oa:SetPoint("TOPRIGHT", self.Health, "TOPRIGHT", 0, 0)
+			oa:SetHeight(6)
+		else
+			oa:SetPoint("TOPRIGHT", self.Health, "TOPRIGHT", 0, 0)
+			oa:SetPoint("BOTTOMRIGHT", self.Health, "BOTTOMRIGHT", 0, 0)
+			oa:SetWidth(6)
+		end
 		oa:SetVertexColor(0.5, 0.5, 1)
 		oa:SetHorizTile(true)
 		oa:SetVertTile(true)
 		oa:SetAlpha(0.4)
 		oa:SetBlendMode("ADD")
-		oa:SetWidth(6)
-		self.HealthPrediction.overDamageAbsorbIndicator = oa
+		self.Health.OverDamageAbsorbIndicator = oa
 	end
 
 	-- Over heal absorb from enemy in left
 	if C.raidframe.plugins_over_heal_absorb then
 		local oha = self.Health:CreateTexture(nil, "ARTWORK")
 		oha:SetTexture([[Interface\AddOns\ShestakUI\Media\Textures\Cross.tga]], "REPEAT", "REPEAT")
-		oha:SetPoint("TOPRIGHT", self.Health, "TOPLEFT", 6, 0)
-		oha:SetPoint("BOTTOMRIGHT", self.Health, "BOTTOMLEFT", 6, 0)
+		if vertical then
+			oha:SetPoint("BOTTOMLEFT", self.Health, "BOTTOMLEFT", 0, 0)
+			oha:SetPoint("BOTTOMRIGHT", self.Health, "BOTTOMRIGHT", 0, 0)
+			oha:SetHeight(6)
+		else
+			oha:SetPoint("TOPLEFT", self.Health, "TOPLEFT", 0, 0)
+			oha:SetPoint("BOTTOMLEFT", self.Health, "BOTTOMLEFT", 0, 0)
+			oha:SetWidth(6)
+		end
 		oha:SetVertexColor(1, 0, 0)
 		oha:SetHorizTile(true)
 		oha:SetVertTile(true)
 		oha:SetAlpha(0.4)
 		oha:SetBlendMode("ADD")
-		oha:SetWidth(6)
-		self.HealthPrediction.overHealAbsorbIndicator = oha
+		self.Health.OverHealAbsorbIndicator = oha
 	end
 end
 
