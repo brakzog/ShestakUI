@@ -37,17 +37,15 @@ local CreateFS = function(frame)
 end
 
 local AddUnit = function(unit)
-	local _, threatpct, _, threatval = UnitDetailedThreatSituation("player", unit)
-
-	threatpct = SafeNumber(threatpct) or 0
-	threatval = SafeNumber(threatval) or 0
-
--- Now comparisons are safe
-if  threatval and threatval < 0 then
-		threatval = threatval + 410065408
+	local threatpct, _, threatval = select(3, UnitDetailedThreatSituation(unit, "target"))
+	if T.IsSecretValue(threatpct) then return end
+	if canaccessvalue(threatval) then
+		if threatval and threatval < 0 then
+			threatval = threatval + 410065408
+		end
 	end
 	local guid = UnitGUID(unit)
-	if not canaccessvalue(guid) then return end -- BETA
+	if T.IsSecretValue(guid) then return end -- BETA
 	if not tList[guid] then
 		tinsert(barList, guid)
 		tList[guid] = {
