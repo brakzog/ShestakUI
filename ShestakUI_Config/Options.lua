@@ -1492,7 +1492,6 @@ do
 		{"flyout_button"},
 		{"mage_nuggets"},
 		{"my_role_play"},
-		{"npcscan"},
 		{"nug_running"},
 		{"omen"},
 		{"opie"},
@@ -1889,16 +1888,19 @@ do
 	local plugins_debuffs_timer = ns.CreateCheckBox(parent, "plugins_debuffs_timer")
 	plugins_debuffs_timer:SetPoint("TOPLEFT", plugins_debuffs, "BOTTOMLEFT", 20, 0)
 
+	local plugins_private_auras = ns.CreateCheckBox(parent, "plugins_private_auras")
+	plugins_private_auras:SetPoint("TOPLEFT", plugins_debuffs_timer, "BOTTOMLEFT", 0, 0)
+
 	-- local plugins_debuffhighlight_icon = ns.CreateCheckBox(parent, "plugins_debuffhighlight_icon")
 	-- plugins_debuffhighlight_icon:SetPoint("TOPLEFT", plugins_debuffs_timer, "BOTTOMLEFT", 0, 0)
 
 	-- local plugins_pvp_debuffs = ns.CreateCheckBox(parent, "plugins_pvp_debuffs")
 	-- plugins_pvp_debuffs:SetPoint("TOPLEFT", plugins_debuffhighlight_icon, "BOTTOMLEFT", 0, 0)
 
-	plugins_debuffs.children = {plugins_debuffs_timer, plugins_debuffhighlight_icon, plugins_pvp_debuffs}
+	plugins_debuffs.children = {plugins_debuffs_timer, plugins_private_auras, plugins_debuffhighlight_icon, plugins_pvp_debuffs}
 
 	local plugins_buffs = ns.CreateCheckBox(parent, "plugins_buffs")
-	plugins_buffs:SetPoint("TOPLEFT", plugins_debuffs_timer, "BOTTOMLEFT", -20, 0)
+	plugins_buffs:SetPoint("TOPLEFT", plugins_private_auras, "BOTTOMLEFT", -20, 0)
 
 	local plugins_buffs_timer = ns.CreateCheckBox(parent, "plugins_buffs_timer")
 	plugins_buffs_timer:SetPoint("TOPLEFT", plugins_buffs, "BOTTOMLEFT", 20, 0)
@@ -2607,11 +2609,11 @@ do
 	-- local extra_color = ns.CreateColourPicker(parent, "extra_color", true)
 	-- extra_color:SetPoint("TOPLEFT", offtank_color, "BOTTOMLEFT", 0, -8)
 
-	--BETA local mob_color_enable = ns.CreateCheckBox(parent, "mob_color_enable")
-	-- mob_color_enable:SetPoint("TOPLEFT", extra_color, "BOTTOMLEFT", -24, -8)
+	local mob_color_enable = ns.CreateCheckBox(parent, "mob_color_enable")
+	mob_color_enable:SetPoint("TOPLEFT", offtank_color, "BOTTOMLEFT", -24, -8)
 
-	-- local mob_color = ns.CreateColourPicker(parent, "mob_color", true)
-	-- mob_color:SetPoint("TOPLEFT", mob_color_enable, "BOTTOMLEFT", 24, -4)
+	local mob_color = ns.CreateColourPicker(parent, "mob_color", true)
+	mob_color:SetPoint("TOPLEFT", mob_color_enable, "BOTTOMLEFT", 24, -4)
 
 	-- local mob_color_list = ns.CreateEditBox(parent, "mob_color_list", true)
 	-- mob_color_list:SetPoint("TOPLEFT", mob_color, "BOTTOMLEFT", 2, -10)
@@ -2644,11 +2646,11 @@ do
 	enable.children = {blizz_head_numbers, damage_style}
 
 	-- Damage and healing
-	-- local subheader = ns.addSubCategory(parent, L.combattext_subheader_damage)
-	-- subheader:SetPoint("TOPLEFT", damage_style, "BOTTOMLEFT", -20, -10)
+	local subheader = ns.addSubCategory(parent, L.combattext_subheader_damage)
+	subheader:SetPoint("TOPLEFT", damage_style, "BOTTOMLEFT", -20, -10)
 
-	-- local incoming = ns.CreateCheckBox(parent, "incoming", L.combattext_incoming)
-	-- incoming:SetPoint("TOPLEFT", subheader, "BOTTOMLEFT", 0, -8)
+	local incoming = ns.CreateCheckBox(parent, "incoming", L.combattext_incoming)
+	incoming:SetPoint("TOPLEFT", subheader, "BOTTOMLEFT", 0, -8)
 
 	-- local damage = ns.CreateCheckBox(parent, "damage", L_GUI_COMBATTEXT_DAMAGE)
 	-- damage:SetPoint("TOPLEFT", incoming, "BOTTOMLEFT", 0, 0)
@@ -2762,11 +2764,11 @@ do
 
 	-- damage.children = {pet_damage, dot_damage, dispel, interrupt, killingblow}
 
-	-- local status = parent:CreateFontString(nil, "ARTWORK", "GameFontHighlight")
-	-- status:SetPoint("TOPLEFT", dk_runes, "BOTTOMLEFT", -30, -15)
-	-- status:SetWidth(600)
-	-- status:SetTextColor(0.9, 0.9, 0.9)
-	-- status:SetText(L.combattext_subheader_combat_module_top_extra)
+	local status = parent:CreateFontString(nil, "ARTWORK", "GameFontHighlight")
+	status:SetPoint("TOPLEFT", dk_runes or incoming, "BOTTOMLEFT", -30, -15)
+	status:SetWidth(600)
+	status:SetTextColor(0.9, 0.9, 0.9)
+	status:SetText(L.combattext_subheader_combat_module_top_extra)
 end
 
 -- Bag

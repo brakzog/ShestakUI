@@ -261,7 +261,7 @@ if T.screenHeight > 1200 then
 	Mult = T.mult
 end
 
-local AurasPostCreateIcon = function(element, button)
+local AurasPostCreateIcon = function(_, button)
 	CreateBorderFrame(button)
 
 	T.SkinCooldown(button.Cooldown, "aura")
@@ -469,6 +469,16 @@ local function castColor(self)
 	-- end
 end
 
+local function CastInterrupted(self, unit, interruptedBy)
+	self:GetStatusBarTexture():SetVertexColor(0.2, 0.2, 0.2)
+	if interruptedBy then
+		local unitName = UnitNameFromGUID(interruptedBy)
+		if unitName then
+			self.Text:SetFormattedText("%s [%s]", INTERRUPTED, unitName)
+		end
+	end
+end
+
 -- Health color
 local function threatColor(self, forced)
 	if UnitIsPlayer(self.unit) then return end
@@ -595,6 +605,9 @@ local function HealthPostUpdateColor(self, unit, color)
 		self.bg:SetVertexColor(r * mu, g * mu, b * mu)
 	elseif not UnitIsTapDenied(unit) and not isPlayer then
 		local special = UnitClassification(unit)
+		if special == "elite" and IsInInstance() and UnitClassBase(unit) == "PALADIN" then
+			main.npcID = "caster"
+		end
 		if C.nameplate.mob_color_enable and T.ColorPlate[main.npcID] then
 			r, g, b = unpack(T.ColorPlate[main.npcID])
 		elseif special == "rare" or special == "rareelite" then
@@ -785,6 +798,9 @@ local function style(self, unit)
 		self.Castbar.Text:SetShadowOffset(C.font.nameplates_font_shadow and 1 or 0, C.font.nameplates_font_shadow and -1 or 0)
 		self.Castbar.Text:SetHeight(C.font.nameplates_font_size)
 		self.Castbar.Text:SetJustifyH("LEFT")
+
+		self.Castbar.timeToHold = 1.5 -- for interrupted
+		self.Castbar.PostCastInterrupted = CastInterrupted
 	end
 
 	-- Cast Bar Icon
