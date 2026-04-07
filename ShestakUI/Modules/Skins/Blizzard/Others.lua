@@ -277,10 +277,8 @@ SkinBlizzUI:SetScript("OnEvent", function(_, _, addon)
 
 				if backdrops[frame] then
 					frame.backdrop = backdrops[frame] -- relink it back
-					if T.newPatch then
-						if frame:GetFrameLevel() - 1 >= 0 then
-							frame.backdrop:SetFrameLevel(frame:GetFrameLevel() - 1)
-						end
+					if frame:GetFrameLevel() - 1 >= 0 then
+						frame.backdrop:SetFrameLevel(frame:GetFrameLevel() - 1)
 					end
 				else
 					frame:CreateBackdrop("Transparent") -- :SetTemplate errors out
@@ -413,7 +411,7 @@ SkinBlizzUI:SetScript("OnEvent", function(_, _, addon)
 		end
 		_G["GeneralDockManagerOverflowButtonList"]:SetFrameStrata("HIGH")
 		_G["ReadyCheckListenerFrame"]:SetAlpha(0)
-		_G["ReadyCheckFrame"]:HookScript("OnShow", function(self) if UnitIsUnit("player", self.initiator) then self:Hide() end end)
+		_G["ReadyCheckFrame"]:HookScript("OnShow", function(self) if T.unitIsUnit("player", self.initiator) then self:Hide() end end)
 
 		-- StackSplit
 		StackSplitFrame:SetFrameStrata("TOOLTIP")

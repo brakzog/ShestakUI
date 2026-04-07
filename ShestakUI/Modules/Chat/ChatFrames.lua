@@ -445,10 +445,7 @@ local function SetupTempChat()
 end
 hooksecurefunc("FCF_OpenTemporaryWindow", SetupTempChat)
 
-local old = FCFManager_GetNumDedicatedFrames
-function FCFManager_GetNumDedicatedFrames(...)
-	return select(1, ...) ~= "PET_BATTLE_COMBAT_LOG" and old(...) or 1
-end
+
 
 local function RemoveRealmName(_, _, msg, author, ...)
 	local realm = string.gsub(T.realm, " ", "")
@@ -510,7 +507,7 @@ local function UpdateTabChannelSwitch(self)
 			for j = h, r, step do
 				if cycles[j]:use(self, currChatType) then
 					self:SetAttribute("chatType", cycles[j].chatType)
-					ChatFrameEditBoxMixin.UpdateHeaderr(self)
+					ChatFrameEditBoxMixin.UpdateHeader(self)
 					return
 				end
 			end
@@ -522,14 +519,14 @@ hooksecurefunc("ChatEdit_CustomTabPressed", UpdateTabChannelSwitch)
 ----------------------------------------------------------------------------------------
 --	Role icons
 ----------------------------------------------------------------------------------------
-if C.chat.role_icons == true then
-	local chats = {
-		CHAT_MSG_SAY = 1, CHAT_MSG_YELL = 1,
-		CHAT_MSG_WHISPER = 1, CHAT_MSG_WHISPER_INFORM = 1,
-		CHAT_MSG_PARTY = 1, CHAT_MSG_PARTY_LEADER = 1,
-		CHAT_MSG_INSTANCE_CHAT = 1, CHAT_MSG_INSTANCE_CHAT_LEADER = 1,
-		CHAT_MSG_RAID = 1, CHAT_MSG_RAID_LEADER = 1, CHAT_MSG_RAID_WARNING = 1,
-	}
+-- if C.chat.role_icons == true then
+	-- local chats = {
+		-- CHAT_MSG_SAY = 1, CHAT_MSG_YELL = 1,
+		-- CHAT_MSG_WHISPER = 1, CHAT_MSG_WHISPER_INFORM = 1,
+		-- CHAT_MSG_PARTY = 1, CHAT_MSG_PARTY_LEADER = 1,
+		-- CHAT_MSG_INSTANCE_CHAT = 1, CHAT_MSG_INSTANCE_CHAT_LEADER = 1,
+		-- CHAT_MSG_RAID = 1, CHAT_MSG_RAID_LEADER = 1, CHAT_MSG_RAID_WARNING = 1,
+	-- }
 
 	local role_tex = {
 		TANK = "\124T"..[[Interface\AddOns\ShestakUI\Media\Textures\Tank.tga]]..":12:12:0:0:64:64:5:59:5:59\124t",
@@ -552,7 +549,28 @@ if C.chat.role_icons == true then
 		return ret
 	end
 	_G.GetColoredName = GetColoredName_hook
-end
+	-- local role_tex = {
+		-- TANK = "\124T"..[[Interface\AddOns\ShestakUI\Media\Textures\Tank.tga]]..":12:12:0:0:64:64:5:59:5:59\124t",
+		-- HEALER	= "\124T"..[[Interface\AddOns\ShestakUI\Media\Textures\Healer.tga]]..":12:12:0:0:64:64:5:59:5:59\124t",
+		-- DAMAGER = "\124T"..[[Interface\AddOns\ShestakUI\Media\Textures\Damager.tga]]..":12:12:0:0:64:64:5:59:5:59\124t",
+	-- }
+
+	-- local func_orig = _G.ChatFrameUtil.GetDecoratedSenderName
+	-- local function setRoleIcon(event, arg1, arg2, ...)
+		-- local ret = func_orig(event, arg1, arg2, ...) -- secret error
+		-- if chats[event] then
+			-- local role = UnitGroupRolesAssigned(arg2)
+			-- if role == "NONE" and arg2:match(" *- *"..GetRealmName().."$") then
+				-- role = UnitGroupRolesAssigned(arg2:gsub(" *-[^-]+$",""))
+			-- end
+			-- if role and role ~= "NONE" then
+				-- ret = role_tex[role]..""..ret
+			-- end
+		-- end
+		-- return ret
+	-- end
+	-- _G.ChatFrameUtil.GetDecoratedSenderName = setRoleIcon
+-- end
 
 
 -- --------------------------------------------------------------------

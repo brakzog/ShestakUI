@@ -1,5 +1,5 @@
 ﻿local T, C, L = unpack(ShestakUI)
-if T.newPatch then return end -- BETA not work
+if T.Midnight then return end -- BETA not work
 if C.unitframe.enable ~= true or C.unitframe.show_arena ~= true or C.unitframe.plugins_diminishing ~= true then return end
 
 ----------------------------------------------------------------------------------------
@@ -118,7 +118,7 @@ local eventRegistered = {
 local function CombatLogCheck(self)
 	local _, instanceType = IsInInstance()
 	if instanceType ~= "arena" then return end
-	local _, eventType, _, _, _, _, _, destGUID, _, _, _, spellID, _, _, auraType = CombatLogGetCurrentEventInfo()
+	local _, eventType, _, _, _, _, _, destGUID, _, _, _, spellID, _, _, auraType = C_CombatLog.GetCurrentEventInfo()
 	if not eventRegistered[eventType] then return end
 	if destGUID ~= UnitGUID(self.target) then return end
 

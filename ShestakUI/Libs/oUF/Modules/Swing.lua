@@ -1,5 +1,5 @@
 local T, C, L = unpack(ShestakUI)
-if T.newPatch then return end -- BETA not work
+if T.Midnight then return end -- BETA not work
 if C.unitframe.enable ~= true or C.unitframe.plugins_swing ~= true then return end
 
 ----------------------------------------------------------------------------------------
@@ -29,7 +29,7 @@ local function OnDurationUpdate(self)
 end
 
 local function Melee(self)
-	local _, event, _, GUID, _, _, _, tarGUID, _, _, _, missType = CombatLogGetCurrentEventInfo()
+	local _, event, _, GUID, _, _, _, tarGUID, _, _, _, missType = C_CombatLog.GetCurrentEventInfo()
 	local bar = self.Swing
 
 	if UnitGUID(self.unit) == tarGUID then

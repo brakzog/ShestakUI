@@ -1,5 +1,5 @@
 ﻿local T, C, L = unpack(ShestakUI)
-if T.newPatch then return end -- BETA not work
+if T.Midnight then return end -- BETA not work
 if C.announcements.feasts ~= true and C.announcements.portals ~= true and C.announcements.toys ~= true then return end
 
 ----------------------------------------------------------------------------------------
@@ -9,7 +9,7 @@ local frame = CreateFrame("Frame")
 frame:RegisterEvent("COMBAT_LOG_EVENT_UNFILTERED")
 frame:SetScript("OnEvent", function()
 	if not IsInGroup() or InCombatLockdown() then return end
-	local _, subEvent, _, _, srcName, _, _, _, destName, _, _, spellID = CombatLogGetCurrentEventInfo()
+	local _, subEvent, _, _, srcName, _, _, _, destName, _, _, spellID = C_CombatLog.GetCurrentEventInfo()
 	if not subEvent or not spellID or not srcName then return end
 	if not UnitInRaid(srcName) and not UnitInParty(srcName) then return end
 
