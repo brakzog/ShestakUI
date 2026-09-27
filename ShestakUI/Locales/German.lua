@@ -49,6 +49,7 @@ L_MISC_HEADER_MARK = "Mausdrüber Raid Icon"
 L_MISC_BINDER_OPEN = "Maus gebunden"
 L_MISC_SCROLL = "Rolle"
 L_MISC_HEADER_QUEST = "Auto-Quest-Button"
+L_MISC_DESTROY_ITEM = "Möchtest du diesen Gegenstand zerstören?" -- Needs review
 
 -- Raid Utility
 L_RAID_UTIL_DISBAND = "Gruppe auflösen"

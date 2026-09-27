@@ -9,7 +9,7 @@ SLASH_RELOADUI2 = "/кд"
 SLASH_RELOADUI3 = "//"
 SLASH_RELOADUI4 = "/."
 
-SlashCmdList.RCSLASH = function() DoReadyCheck() end
+SlashCmdList.RCSLASH = function() C_PartyInfo.DoReadyCheck() end
 SLASH_RCSLASH1 = "/rc"
 SLASH_RCSLASH2 = "/кс"
 
@@ -89,14 +89,14 @@ local function DisbandRaidGroup()
 		for i = 1, GetNumGroupMembers() do
 			local name, _, _, _, _, _, _, online = GetRaidRosterInfo(i)
 			if online and name ~= T.name then
-				UninviteUnit(name)
+				C_PartyInfo.UninviteUnit(name)
 			end
 		end
 	else
 		T.SendChatMessage(L_INFO_DISBAND, "PARTY")
 		for i = MAX_PARTY_MEMBERS, 1, -1 do
 			if GetNumGroupMembers(i) then
-				UninviteUnit(UnitName("party"..i))
+				C_PartyInfo.UninviteUnit(UnitName("party"..i))
 			end
 		end
 	end
@@ -238,7 +238,7 @@ SLASH_FRAME2 = "/акфьу"
 ----------------------------------------------------------------------------------------
 SlashCmdList["FRAMELIST"] = function(msg)
 	if not FrameStackTooltip then
-		UIParentLoadAddOn("Blizzard_DebugTools")
+		C_AddOns.LoadAddOn("Blizzard_DebugTools")
 	end
 
 	local isPreviouslyShown = FrameStackTooltip:IsShown()
@@ -255,7 +255,9 @@ SlashCmdList["FRAMELIST"] = function(msg)
 		local text = _G["FrameStackTooltipTextLeft"..i]:GetText()
 		-- if text and text ~= "" then
 			local r, g, b = _G["FrameStackTooltipTextLeft"..i]:GetTextColor()
-			text = format("|cff%02x%02x%02x%s|r", r * 255, g * 255, b * 255, text)
+			if canaccessvalue(r) then
+				text = format("|cff%02x%02x%02x%s|r", r * 255, g * 255, b * 255, text)
+			end
 			print(text)
 		-- end
 	end
@@ -273,7 +275,7 @@ SLASH_FRAMELIST4 = "/ад"
 --	Frame Stack on Cyrillic
 ----------------------------------------------------------------------------------------
 SlashCmdList.FSTACK = function()
-	UIParentLoadAddOn("Blizzard_DebugTools")
+	C_AddOns.LoadAddOn("Blizzard_DebugTools")
 	FrameStackTooltip_Toggle(false, true, true)
 end
 SLASH_FSTACK1 = "/аыефсл"

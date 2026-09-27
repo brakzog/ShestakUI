@@ -49,6 +49,7 @@ L_MISC_HEADER_MARK = "Метки по наведению курсора"
 L_MISC_BINDER_OPEN = "Назначения мыши"
 L_MISC_SCROLL = "Свиток"
 L_MISC_HEADER_QUEST = "Кнопка для квестовых предметов"
+L_MISC_DESTROY_ITEM = "Хотите уничтожить предмет?"
 
 -- Raid Utility
 L_RAID_UTIL_DISBAND = "Распустить группу"

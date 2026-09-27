@@ -49,6 +49,7 @@ L_MISC_HEADER_MARK = "Iconos de raid al pasar el ratón"
 L_MISC_BINDER_OPEN = "Asignaciones de ratón"
 L_MISC_SCROLL = "Pergamino"
 L_MISC_HEADER_QUEST = "Botón de misión automática"
+L_MISC_DESTROY_ITEM = "¿Quieres destruir este objeto?"
 
 -- Raid Utility
 L_RAID_UTIL_DISBAND = "Disolver grupo"

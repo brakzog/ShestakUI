@@ -49,6 +49,7 @@ L_MISC_HEADER_MARK = "Icône de raid au survol de la souris"
 L_MISC_BINDER_OPEN = "Assignations des boutons de la souris"
 L_MISC_SCROLL = "Parchemin"
 L_MISC_HEADER_QUEST = "Bouton d'items de quête automatique"
+L_MISC_DESTROY_ITEM = "Voulez-vous détruire cet objet ?" -- Needs review
 
 -- Raid Utility
 L_RAID_UTIL_DISBAND = "Dissoudre le raid"

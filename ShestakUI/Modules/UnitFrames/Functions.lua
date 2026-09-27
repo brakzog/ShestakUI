@@ -37,9 +37,10 @@ local oUF = ns.oUF
 T.oUF = oUF
 
 T.UpdateAllElements = function(frame)
-	for _, v in ipairs(frame.__elements) do
-		v(frame, "UpdateElement", frame.unit)
-	end
+	--BETA for _, v in ipairs(frame.__elements) do
+		-- v(frame, "UpdateElement", frame.unit)
+	-- end
+	frame:UpdateAllElements("UpdateElement")
 end
 
 T.SetFontString = function(parent, fontName, fontHeight, fontStyle)
@@ -159,9 +160,10 @@ end
 T.PostUpdateBackdropColor = function(element, color)
 	local bg = element.bg
 	if bg and color then
-		local mu = bg.multiplier or 1
+		-- local mu = bg.multiplier or 1
 		local r, g, b = color:GetRGB()
-		bg:SetVertexColor(r * mu, g * mu, b * mu)
+		-- bg:SetVertexColor(r * mu, g * mu, b * mu)
+		bg:SetVertexColor(r, g, b, 0.2)
 	end
 end
 
@@ -531,7 +533,7 @@ T.UpdateClassMana = function(self, elapsed)
 	if self.elapsed < 0.05 then return end
 	self.elapsed = 0
 
-	if self.unit ~= "player" then return end
+	if self.__unit ~= "player" then return end
 
 	if UnitPowerType("player") ~= 0 then
 		if UnitIsDeadOrGhost("player") then
@@ -605,7 +607,7 @@ local function castColor(unit)
 	return r, g, b
 end
 
-T.PostCastStart = function(Castbar, unit)
+T.PostCastStart = function(Castbar, unit, _, notInterruptible)
 	if unit == "vehicle" then unit = "player" end
 
 	if unit == "player" and C.unitframe.castbar_latency and Castbar.Latency then
@@ -636,12 +638,12 @@ T.PostCastStart = function(Castbar, unit)
 	end
 
 	if UnitCanAttack("player", unit) then -- check interrupt only for hostile
-		local color = C_CurveUtil.EvaluateColorFromBoolean(Castbar.notInterruptible, {r = 0.8, g = 0, b = 0, a = 1}, {r = r, g = g, b = b, a = 1})
-		local color_border = C_CurveUtil.EvaluateColorFromBoolean(Castbar.notInterruptible, {r = 0.8, g = 0, b = 0, a = 1}, {r = C.media.border_color[1], g = C.media.border_color[2], b = C.media.border_color[3], a = 1})
+		local color = C_CurveUtil.EvaluateColorFromBoolean(notInterruptible, {r = 0.8, g = 0, b = 0, a = 1}, {r = r, g = g, b = b, a = 1})
+		local color_border = C_CurveUtil.EvaluateColorFromBoolean(notInterruptible, {r = 0.8, g = 0, b = 0, a = 1}, {r = C.media.border_color[1], g = C.media.border_color[2], b = C.media.border_color[3], a = 1})
 
 		Castbar:GetStatusBarTexture():SetVertexColor(color:GetRGBA())
 		if C.unitframe.own_color then
-			local color_bg = C_CurveUtil.EvaluateColorFromBoolean(Castbar.notInterruptible, {r = 0.8, g = 0, b = 0, a = 0.2}, {r = C.unitframe.uf_color_bg[1], g = C.unitframe.uf_color_bg[2], b = C.unitframe.uf_color_bg[3], a = 1})
+			local color_bg = C_CurveUtil.EvaluateColorFromBoolean(notInterruptible, {r = 0.8, g = 0, b = 0, a = 0.2}, {r = C.unitframe.uf_color_bg[1], g = C.unitframe.uf_color_bg[2], b = C.unitframe.uf_color_bg[3], a = 1})
 			Castbar.bg:SetVertexColor(color_bg:GetRGBA())
 		else
 			Castbar.bg:SetVertexColor(color.r, color.g, color.b, 0.2)
@@ -697,6 +699,27 @@ T.CustomCastDelayText = function(self, durationObject)
 	self.Time:SetText(("%.1f |cffaf5050%s %.1f|r"):format(self.channeling and duration or elapsed, self.channeling and "-" or "+", abs(self.delay)))
 end
 
+local castTimeFormatter = C_StringUtil.CreateSecondsFormatter()
+castTimeFormatter:SetDefaultAbbreviation(Enum.SecondsFormatterAbbreviation.OneLetter)
+castTimeFormatter:SetMinInterval(Enum.SecondsFormatterInterval.Seconds)
+castTimeFormatter:SetMillisecondsThreshold(60)
+
+T.CustomCastbarTimeBinding = function()
+	local binding = C_DurationUtil.CreateDurationTextBinding()
+	binding:SetTextFormat("{}/{}", {
+		{
+			property = Enum.DurationTextBindingProperty.ElapsedDuration,
+			formatter = castTimeFormatter,
+		},
+		{
+			property = Enum.DurationTextBindingProperty.TotalDuration,
+			formatter = castTimeFormatter,
+		},
+	})
+
+	return binding
+end
+
 local colorStages = {
 	[1] = {1, 0, 0},
 	[2] = {1, 0.4, 0},
@@ -743,23 +766,17 @@ T.PostUpdatePips = function(element)
 	end
 end
 
---BETA T.AuraTrackerTime = function(self, elapsed)
-	-- if self.active then
-		-- self.timeleft = self.timeleft - elapsed
-		-- if self.timeleft <= 5 then
-			-- self.text:SetTextColor(1, 0, 0)
-		-- else
-			-- self.text:SetTextColor(1, 1, 1)
-		-- end
-		-- if self.timeleft <= 0 then
-			-- self.icon:SetTexture("")
-			-- self.text:SetText("")
-		-- end
-		-- self.text:SetFormattedText("%.1f", self.timeleft)
-	-- end
--- end
+local dispelColor = {
+	None = CreateColor(1, 0, 0),
+	Magic = CreateColor(0.2, 0.6, 1),
+	Curse = CreateColor(0.6, 0, 1),
+	Disease = CreateColor(0.6, 0.4, 0),
+	Poison = CreateColor(0, 0.6, 0),
+	Enrage = CreateColor(0.95, 0.4, 0.95),
+	Bleed = CreateColor(1, 0, 0.5)
+}
 
-T.PostCreateIcon = function(_, button)
+T.PostCreateIcon = function(element, button, options)
 	button:SetTemplate("Default")
 
 	T.SkinCooldown(button.Cooldown, "aura")
@@ -773,35 +790,39 @@ T.PostCreateIcon = function(_, button)
 	button.Count:SetFont(C.font.auras_font, C.font.auras_font_size, C.font.auras_font_style)
 	button.Count:SetShadowOffset(C.font.auras_font_shadow and 1 or 0, C.font.auras_font_shadow and -1 or 0)
 
+	if options.notPlayerDebuff then
+		button:SetBackdropBorderColor(unpack(C.media.border_color))
+		button.Icon:SetDesaturated(true)
+	elseif options.showStealable then
+		for _, border in pairs{T.CreateBorderTexture(button)} do
+			button:AddDispelTypeTexture(border, {
+				style = Enum.CustomAuraButtonDispelTypeTextureStyle.PreserveAsset,
+				showWhenHelpful = true,
+				showWithoutDispelType = true,
+				stealableFilter = Enum.CustomAuraButtonDispelTypeStealableFilter.Stealable
+			})
+		end
+	elseif C.aura.debuff_color_type then
+		for _, border in pairs{T.CreateBorderTexture(button)} do
+			button:AddDispelTypeTexture(border, {
+			   style = Enum.CustomAuraButtonDispelTypeTextureStyle.PreserveAsset,
+			   showWithoutDispelType = true,
+			   customDispelColorMap = dispelColor,
+			})
+		end
+	end
+
 	if C.aura.show_spiral then
 		button.Cooldown:SetReverse(true)
 		button.Cooldown:SetPoint("TOPLEFT", button, "TOPLEFT", 2, -2)
 		button.Cooldown:SetPoint("BOTTOMRIGHT", button, "BOTTOMRIGHT", -2, 2)
-		button.parent = CreateFrame("Frame", nil, button)
-		button.parent:SetFrameLevel(button.Cooldown:GetFrameLevel() + 1)
-		button.Count:SetParent(button.parent)
-	else
-		-- button.Cooldown:SetAlpha(0)
+	end
+
+	if element.isRaidDebuff then
+		button.Cooldown:SetCountdownMillisecondsThreshold(0)
+		button.Cooldown:SetHideCountdownNumbers(not C.raidframe.plugins_buffs_timer)
 	end
 end
-
-local dispelIndex = {
-	[0] = CreateColor(1, 0, 0),			-- None
-	[1] = CreateColor(0.2, 0.6, 1),		-- Magic
-	[2] = CreateColor(0.6, 0, 1),		-- Curse
-	[3] = CreateColor(0.6, 0.4, 0),		-- Disease
-	[4] = CreateColor(0, 0.6, 0),		-- Poison
-	[9] = CreateColor(0.95, 0.4, 0.95),	-- Enrage
-	[11] = CreateColor(1, 0, 0.5)		-- Bleed
-}
-
-local curve = C_CurveUtil.CreateColorCurve()
-curve:SetType(Enum.LuaCurveType.Step)
-
-for i, color in pairs(dispelIndex) do
-	AddCurvePoint(curve, i, color)
-end
-T.DispelCurve = curve
 
 T.PostUpdateIcon = function(_, button, unit, data)
 	if data.isHarmfulAura then
@@ -828,48 +849,6 @@ T.PostUpdateIcon = function(_, button, unit, data)
 	end
 end
 
-T.PostUpdateGapButton = function(_, _, button)
-	button:Hide()
-end
-
-T.CreateRaidBuffIcon = function(_, button)
-	T.SkinCooldown(button.Cooldown, "aura")
-
-	button.Cooldown:SetHideCountdownNumbers(not C.raidframe.plugins_buffs_timer)
-
-	button:CreateBorder(nil, true)
-	button.oborder:SetOutside(button.Icon, 1, 1)
-
-	button.Icon:SetTexCoord(0.1, 0.9, 0.1, 0.9)
-
-	button.Count:SetPoint("BOTTOMRIGHT", button, "BOTTOMRIGHT", 4, -1)
-	button.Count:SetJustifyH("RIGHT")
-	button.Count:SetFont(C.font.unit_frames_font, C.font.unit_frames_font_size, C.font.unit_frames_font_style)
-	button.Count:SetShadowOffset(C.font.auras_font_shadow and 1 or 0, C.font.auras_font_shadow and -1 or 0)
-
-	if C.aura.show_spiral then
-		button.Cooldown:SetReverse(true)
-		button.parent = CreateFrame("Frame", nil, button)
-		button.parent:SetFrameLevel(button.Cooldown:GetFrameLevel() + 1)
-		button.Count:SetParent(button.parent)
-	else
-		-- button.Cooldown:SetAlpha(0)
-	end
-end
-
-T.PostUpdateRaidButton = function(_, button, unit, data)
-	if C.aura.debuff_color_type then
-		local color = C_UnitAuras.GetAuraDispelTypeColor(unit, data.auraInstanceID, T.DispelCurve)
-		if color then
-			button:SetBackdropBorderColor(color:GetRGBA())
-		end
-	else
-		button:SetBackdropBorderColor(1, 0, 0)
-	end
-
-	button.Cooldown:SetHideCountdownNumbers(not C.raidframe.plugins_debuffs_timer)
-end
-
 local CountOffSets = {
 	TOPLEFT = {"LEFT", "RIGHT", 1, 0},
 	TOPRIGHT = {"RIGHT", "LEFT", 2, 0},
@@ -881,38 +860,41 @@ local CountOffSets = {
 	BOTTOM = {"RIGHT", "LEFT", 2, 0},
 }
 
-T.CreateAuraWatchIcon = function(_, aura)
-	aura:CreateBorder(nil, true)
-	aura.icon:SetTexCoord(0.1, 0.9, 0.1, 0.9)
-	aura.icon:SetDrawLayer("ARTWORK")
+T.CreateRaidBuffIcon = function(element, button)
+	T.SkinCooldown(button.Cooldown, "aura")
 
-	if aura.cd then
-		T.SkinCooldown(aura.cd, "aura")
-		aura.cd:SetHideCountdownNumbers(not C.raidframe.plugins_buffs_timer)
-		aura.cd:SetReverse(true)
+	-- TODO: add yellow color below 5 second? (1, 1, 0.2)
+	button.Cooldown:SetCountdownMillisecondsThreshold(0)
+	button.Cooldown:SetHideCountdownNumbers(not C.raidframe.plugins_buffs_timer)
 
-		-- if C.raidframe.plugins_buffs_timer then
-			-- aura.parent = CreateFrame("Frame", nil, aura)
-			-- aura.parent:SetFrameLevel(aura.cd:GetFrameLevel() + 1)
-			-- aura.remaining = T.SetFontString(aura.parent, C.font.auras_font, C.font.auras_font_size, C.font.auras_font_style)
-			-- aura.remaining:SetShadowOffset(C.font.auras_font_shadow and 1 or 0, C.font.auras_font_shadow and -1 or 0)
-			-- aura.remaining:SetPoint("CENTER", aura, "CENTER", 1, 0)
-			-- aura.remaining:SetJustifyH("CENTER")
-		-- end
+	button:CreateBorder(nil, true)
+	button.oborder:SetOutside(button.Icon, 1, 1)
+
+	button.Icon:SetTexCoord(0.1, 0.9, 0.1, 0.9)
+
+	if element.point then
+		local point, anchorPoint, x, y = unpack(CountOffSets[element.point])
+		button.Count:SetPoint(point, button, anchorPoint, x, y)
+	else
+		button.Count:SetPoint("BOTTOMRIGHT", button, "BOTTOMRIGHT", 4, -1)
+		button.Count:SetJustifyH("RIGHT")
+	end
+	button.Count:SetFont(C.font.unit_frames_font, C.font.unit_frames_font_size, C.font.unit_frames_font_style)
+	button.Count:SetShadowOffset(C.font.auras_font_shadow and 1 or 0, C.font.auras_font_shadow and -1 or 0)
+
+	if element.color then
+		local tex = button:CreateTexture(nil, "OVERLAY")
+		tex:SetAllPoints(button)
+		tex:SetTexture(C.media.blank)
+		tex:SetVertexColor(unpack(element.color))
+	end
+
+	if C.aura.show_spiral then
+		button.Cooldown:SetReverse(true)
 	end
 end
 
 T.CreateAuraWatch = function(self)
-	local auras = CreateFrame("Frame", nil, self)
-	auras:SetPoint("TOPLEFT", self.Health, 0, 0)
-	auras:SetPoint("BOTTOMRIGHT", self.Health, 0, 0)
-	auras.icons = {}
-	auras.PostCreateIcon = T.CreateAuraWatchIcon
-
-	if not C.aura.show_timer then
-		auras.hideCooldown = true
-	end
-
 	local buffs = {}
 
 	if T.RaidBuffs["ALL"] then
@@ -929,44 +911,27 @@ T.CreateAuraWatch = function(self)
 
 	if buffs then
 		for _, spell in pairs(buffs) do
-			local aura = CreateFrame("Frame", nil, auras)
-			aura.spellID = spell[1]
-			aura.anyUnit = spell[4]
-			aura.strictMatching = spell[5]
-			aura:SetSize(7 * C.raidframe.icon_multiplier, 7 * C.raidframe.icon_multiplier)
-			aura:SetPoint(spell[2], 0, 0)
+			local auras = self:CreateAuras()
+			auras.size = 7 * C.raidframe.icon_multiplier
+			auras:SetPoint(spell[2], 0, 0)
+			auras.showCount = true
+			auras.disableMouse = true
 
-			local tex = aura:CreateTexture(nil, "OVERLAY")
-			tex:SetAllPoints(aura)
-			tex:SetTexture(C.media.blank)
-			if spell[3] then
-				tex:SetVertexColor(unpack(spell[3]))
-			else
-				tex:SetVertexColor(0.8, 0.8, 0.8)
+			auras.point = spell[2]
+			auras.color = spell[3]
+
+			if not C.aura.show_timer then
+				auras.disableCooldown = true
 			end
-			aura.icon = tex
 
-			local count = T.SetFontString(aura, C.font.unit_frames_font, C.font.unit_frames_font_size, C.font.unit_frames_font_style)
-			local point, anchorPoint, x, y = unpack(CountOffSets[spell[2]])
-			count:SetPoint(point, aura, anchorPoint, x, y)
-			aura.count = count
+			auras.PostCreateButton = T.CreateRaidBuffIcon
 
-			auras.icons[spell[1]] = aura
+			local filter = spell[4] and "HELPFUL" or "HELPFUL|PLAYER"
+			auras:AddGroup(filter, {
+				candidateFilters = {includeSpellIDs = {[spell[1]] = true}},
+				maxFrameCount = 1
+			})
 		end
-	end
-
-	self.AuraWatch = auras
-end
-
-T.PrivateAurasSetPosition = function(element, aura)
-	aura:ClearAllPoints()
-	aura:SetPoint("CENTER", element, "CENTER", 0, 0)
-end
-
-T.PrivateAurasPostUpdate = function(self)
-	for i = 1, #self do
-		local aura = self[i]
-		aura:SetSize(0.0001, 0.0001)
 	end
 end
 
@@ -1036,23 +1001,30 @@ T.CreateHealthPrediction = function(self, vertical)
 
 	-- Over absorb in right
 	if C.raidframe.plugins_over_absorb then
-		local oa = self.Health:CreateTexture(nil, "ARTWORK")
-		oa:SetTexture([[Interface\AddOns\ShestakUI\Media\Textures\Cross.tga]], "REPEAT", "REPEAT")
+		local oa = CreateFrame("StatusBar", nil, self.Health)
+		oa:SetAllPoints(self.Health)
+		oa:SetFrameLevel(self.Health:GetFrameLevel())
 		if vertical then
-			oa:SetPoint("TOPLEFT", self.Health, "TOPLEFT", 0, 0)
-			oa:SetPoint("TOPRIGHT", self.Health, "TOPRIGHT", 0, 0)
-			oa:SetHeight(6)
-		else
-			oa:SetPoint("TOPRIGHT", self.Health, "TOPRIGHT", 0, 0)
-			oa:SetPoint("BOTTOMRIGHT", self.Health, "BOTTOMRIGHT", 0, 0)
-			oa:SetWidth(6)
+			oa:SetOrientation("VERTICAL")
 		end
-		oa:SetVertexColor(0.5, 0.5, 1)
-		oa:SetHorizTile(true)
-		oa:SetVertTile(true)
-		oa:SetAlpha(0.4)
-		oa:SetBlendMode("ADD")
+		oa:SetStatusBarTexture(C.media.blank)
+		oa:SetReverseFill(true)
+		oa:SetValue(0)
+
+		local texture = oa:GetStatusBarTexture()
+		texture:SetTexture([[Interface\AddOns\ShestakUI\Media\Textures\Cross.tga]], "REPEAT", "REPEAT")
+		texture:SetVertexColor(0.5, 0.5, 1)
+		texture:SetHorizTile(true)
+		texture:SetVertTile(true)
+		texture:SetAlpha(0.5)
+		texture:SetBlendMode("ADD")
 		self.Health.OverDamageAbsorbIndicator = oa
+
+		hooksecurefunc(self.Health, "PostUpdate", function(self, unit, _, max)
+			local absorb = UnitGetTotalAbsorbs(unit)
+			oa:SetMinMaxValues(0, max)
+			oa:SetValue(absorb)
+		end)
 	end
 
 	-- Over heal absorb from enemy in left
@@ -1089,7 +1061,7 @@ T.UpdateThreat = function(self, unit, status, color)
 end
 
 T.UpdatePvPStatus = function(self)
-	local unit = self.unit
+	local unit = self.__unit
 
 	if self.Status then
 		local factionGroup = UnitFactionGroup(unit)
@@ -1114,16 +1086,372 @@ T.CustomFilter = function(_, unit, data)
 	return true
 end
 
-T.CustomFilterBoss = function(_, unit, data)
-	if data.isHarmfulAura then
-		if data.isPlayerAura then
-		-- if data.isPlayerAura or T.unitIsUnit(unit, data.sourceUnit) then
-		-- if (data.isPlayerAura or data.sourceUnit == unit) then
-			-- if (T.DebuffBlackList and not T.DebuffBlackList[data.name]) or not T.DebuffBlackList then -- BETA secret value
-				return true
-			-- end
-		end
-		return false
+T.DispelColor = function(self)
+	local frame = self:CreateAuras()
+	frame:SetAllPoints(self.Health)
+	frame.disableMouse = true
+	frame.disableCooldown = true
+
+	frame.PostCreateButton = function(self, button)
+		button.Icon:SetAlpha(0)
+
+		local texture = button:CreateTexture(nil, "OVERLAY")
+		texture:SetAllPoints(self)
+		texture:SetTexture(C.media.highlight)
+		texture:SetBlendMode("ADD")
+
+		button:AddDispelTypeTexture(texture, {
+			style = Enum.CustomAuraButtonDispelTypeTextureStyle.PreserveAsset,
+			showWhenHarmful = true,
+			customDispelColorMap = dispelColor
+		})
 	end
-	return true
+
+	frame:AddGroup("HARMFUL|RAID")
+end
+
+T.UnitFrame_OnEnter = function(self)
+	if GameTooltip:IsForbidden() then
+		self.UpdateTooltip = nil
+	else
+		_G.GameTooltip_SetDefaultAnchor(GameTooltip, self)
+
+		self.UpdateTooltip = (T.NotSecretValue(self.__unit) and self.__unit and GameTooltip:SetUnit(self.__unit) and T.UnitFrame_OnEnter) or nil
+	end
+end
+
+local function createAnchors()
+	P_BUFF_ICON_Anchor:SetPoint(unpack(C.position.filger.player_buff_icon))
+	P_BUFF_ICON_Anchor:SetSize(C.filger.buffs_size, C.filger.buffs_size)
+
+	P_PROC_ICON_Anchor:SetPoint(unpack(C.position.filger.player_proc_icon))
+	P_PROC_ICON_Anchor:SetSize(C.filger.buffs_size, C.filger.buffs_size)
+
+	SPECIAL_P_BUFF_ICON_Anchor:SetPoint(unpack(C.position.filger.special_proc_icon))
+	SPECIAL_P_BUFF_ICON_Anchor:SetSize(C.filger.buffs_size, C.filger.buffs_size)
+
+	T_DEBUFF_ICON_Anchor:SetPoint(unpack(C.position.filger.target_debuff_icon))
+	T_DEBUFF_ICON_Anchor:SetSize(C.filger.buffs_size, C.filger.buffs_size)
+
+	T_CC_Anchor:SetPoint(unpack(C.position.filger.target_buff_icon))
+	T_CC_Anchor:SetSize(C.filger.pvp_size, C.filger.pvp_size)
+
+	T_BUFF_Anchor:SetPoint("LEFT", T_CC_Anchor, "LEFT", C.filger.pvp_size + 3, 0)
+	T_BUFF_Anchor:SetSize(C.filger.pvp_size, C.filger.pvp_size)
+
+	PVE_PVP_DEBUFF_Anchor:SetPoint(unpack(C.position.filger.pve_debuff))
+	PVE_PVP_DEBUFF_Anchor:SetSize(C.filger.pvp_size, C.filger.pvp_size)
+
+	FOCUS_CC_Anchor:SetPoint(unpack(C.position.filger.focus_cc))
+	FOCUS_CC_Anchor:SetSize(221, 25)
+
+	local IsPortrait = C.unitframe.portrait_enable and C.unitframe.portrait_type ~= "OVERLAY"
+
+	T_DE_BUFF_BAR_Anchor:SetPoint(C.position.filger.target_bar[1], IsPortrait and "oUF_Target_Portrait" or C.position.filger.target_bar[2], C.position.filger.target_bar[3], IsPortrait and C.position.filger.target_bar[4] - 3 or C.position.filger.target_bar[4], IsPortrait and C.position.filger.target_bar[5] + 38 or C.position.filger.target_bar[5])
+	T_DE_BUFF_BAR_Anchor:SetSize(218, 25)
+
+	P_BUFF_BAR_Anchor:SetPoint(C.position.filger.player_bar[1], IsPortrait and "oUF_Player_Portrait" or C.position.filger.player_bar[2], C.position.filger.player_bar[3], IsPortrait and C.position.filger.player_bar[4] + 3 or C.position.filger.player_bar[4], IsPortrait and C.position.filger.player_bar[5] + 38 or C.position.filger.player_bar[5])
+	P_BUFF_BAR_Anchor:SetSize(218, 25)
+
+	P_BUFF_ICON_Anchor.done = true
+end
+
+local frame = CreateFrame("Frame")
+frame:RegisterEvent("PLAYER_LOGIN")
+frame:SetScript("OnEvent", function()
+	if C.filger.enable and not P_BUFF_ICON_Anchor.done then
+		createAnchors()
+	else
+		frame:UnregisterAllEvents()
+	end
+end)
+
+T.PostCreateFilgerIcon = function(element, button, options)
+	button:SetTemplate("Default")
+
+	T.SkinCooldown(button.Cooldown, options.isBar and "bar" or "actionbar")
+
+	button.Icon:SetPoint("TOPLEFT", 2, -2)
+	button.Icon:SetPoint("BOTTOMRIGHT", -2, 2)
+	button.Icon:SetTexCoord(0.1, 0.9, 0.1, 0.9)
+
+	button.Count:SetPoint("BOTTOMRIGHT", 1, -2)
+	button.Count:SetJustifyH("RIGHT")
+	button.Count:SetFont(C.font.cooldown_timers_font, C.font.cooldown_timers_font_size, C.font.cooldown_timers_font_style)
+	button.Count:SetShadowOffset(C.font.cooldown_timers_font_shadow and 1 or 0, C.font.cooldown_timers_font_shadow and -1 or 0)
+
+	button.Cooldown:SetReverse(true)
+	button.Cooldown:SetPoint("TOPLEFT", button, "TOPLEFT", 2, -2)
+	button.Cooldown:SetPoint("BOTTOMRIGHT", button, "BOTTOMRIGHT", -2, 2)
+	button.Cooldown:SetSwipeColor(0, 0, 0, 0.6)
+	button.Cooldown:SetDrawEdge(false)
+
+	SpellActivationOverlayFrame:SetFrameStrata("BACKGROUND")
+
+	if options.isBar then
+		local statusBar = CreateFrame("StatusBar", "nil", button)
+		statusBar:SetWidth(options.isFocus and 189 or 186)
+		statusBar:SetHeight(button:GetHeight() - 10)
+		statusBar:SetStatusBarTexture(C.media.texture)
+		statusBar:SetStatusBarColor(T.color.r, T.color.g, T.color.b, 1)
+		statusBar:SetPoint("BOTTOMLEFT", button, "BOTTOMRIGHT", 5, 2)
+		statusBar:SetFillStyle(Enum.StatusBarFillStyle.StandardNoRangeFill)
+
+		statusBar.bg = CreateFrame("Frame", "$parentBG", statusBar)
+		statusBar.bg:SetAllPoints()
+		statusBar.bg:CreateBackdrop("Default")
+
+		statusBar.background = statusBar:CreateTexture(nil, "BACKGROUND")
+		statusBar.background:SetAllPoints()
+		statusBar.background:SetTexture(C.media.texture)
+		statusBar.background:SetVertexColor(T.color.r, T.color.g, T.color.b, 0.2)
+
+		button:SetDurationBar(statusBar, {
+			interpolation = Enum.StatusBarInterpolation.ExponentialEaseOut,
+			direction = Enum.StatusBarTimerDirection.RemainingTime
+		})
+
+		button.Count:SetFont(C.font.filger_font, C.font.filger_font_size, C.font.filger_font_style)
+		button.Count:SetShadowOffset(C.font.filger_font_shadow and 1 or 0, C.font.filger_font_shadow and -1 or 0)
+		button.Count:SetPoint("BOTTOMRIGHT", 1, 0)
+
+		button.Cooldown:SetSwipeColor(0, 0, 0, 0)
+
+		local text = button.Cooldown.text
+		text:ClearAllPoints()
+		text:SetPoint("RIGHT", statusBar, 0, 0)
+
+		statusBar.spellname = statusBar:CreateFontString("$parentSpellName", "OVERLAY")
+		statusBar.spellname:SetFont(C.font.filger_font, C.font.filger_font_size, C.font.filger_font_style)
+		statusBar.spellname:SetShadowOffset(C.font.filger_font_shadow and 1 or 0, C.font.filger_font_shadow and -1 or 0)
+		statusBar.spellname:SetPoint("LEFT", statusBar, 2, 0)
+		statusBar.spellname:SetPoint("RIGHT", text, "LEFT")
+		statusBar.spellname:SetJustifyH("LEFT")
+
+		button:SetSpellName(statusBar.spellname)
+	end
+end
+
+T.CreateFilgerAuras = function(self, unit)
+	if unit == "player" then
+		if C.filger.show_pvp_player then
+			-- Crowd controls
+			self.CCDebuffs = self:CreateAuras({
+				growthX = "LEFT",
+				growthY = "UP",
+				initialAnchor = "TOPRIGHT",
+				layoutLimit = C.filger.pvp_size + C.filger.pvp_space
+			})
+			self.CCDebuffs.size = C.filger.pvp_size
+			self.CCDebuffs.showCount = true
+			self.CCDebuffs.lineSpacing = C.filger.pvp_space
+			self.CCDebuffs.sortDirection = AuraContainerSortDirection.Reverse
+			self.CCDebuffs.PostCreateButton = T.PostCreateFilgerIcon
+			self.CCDebuffs:SetPoint("TOPRIGHT", PVE_PVP_DEBUFF_Anchor)
+			self.CCDebuffs.tooltipAnchor = "ANCHOR_TOPRIGHT"
+			self.CCDebuffs.tooltipOffsetY = 3
+			self.CCDebuffs.disableMouse = not C.filger.show_tooltip
+
+			self.CCDebuffs:AddGroup("HARMFUL|CROWD_CONTROL", {
+				maxFrameCount = 2
+			})
+		end
+		if C.filger.show_special then
+			-- Special buffs on player
+			self.SBuffs = self:CreateAuras({
+				growthX = "LEFT",
+				growthY = "UP",
+				initialAnchor = "TOPRIGHT",
+				layoutLimit = (C.filger.buffs_size + C.filger.buffs_space) * 6
+			})
+			self.SBuffs.size = C.filger.buffs_size
+			self.SBuffs.showCount = true
+			self.SBuffs.elementSpacing = C.filger.buffs_space
+			self.SBuffs.sortDirection = AuraContainerSortDirection.Reverse
+			self.SBuffs.PostCreateButton = T.PostCreateFilgerIcon
+			self.SBuffs:SetPoint("TOPRIGHT", SPECIAL_P_BUFF_ICON_Anchor)
+			self.SBuffs.tooltipAnchor = "ANCHOR_TOPRIGHT"
+			self.SBuffs.tooltipOffsetY = 3
+			self.SBuffs.disableMouse = not C.filger.show_tooltip
+
+			self.SBuffs:AddGroup("HELPFUL|!BIG_DEFENSIVE|!EXTERNAL_DEFENSIVE", {
+				maxFrameCount = 2,
+				candidateFilters = {includeSpellIDs = T.Filger_S_P_BUFF}
+			})
+			self.SBuffs:AddGroup("HELPFUL|BIG_DEFENSIVE|!EXTERNAL_DEFENSIVE", {
+				maxFrameCount = 2
+			})
+			self.SBuffs:AddGroup("HELPFUL|EXTERNAL_DEFENSIVE", {
+				maxFrameCount = 1
+			})
+		end
+		if C.filger.show_buff then
+			-- Player buffs
+			self.PBuffs = self:CreateAuras({
+				growthX = "LEFT",
+				growthY = "UP",
+				initialAnchor = "TOPRIGHT",
+				layoutLimit = (C.filger.buffs_size + C.filger.buffs_space) * 6
+			})
+			self.PBuffs.size = C.filger.buffs_size
+			self.PBuffs.showCount = true
+			self.PBuffs.elementSpacing = C.filger.buffs_space
+			self.PBuffs.sortDirection = AuraContainerSortDirection.Reverse
+			self.PBuffs.PostCreateButton = T.PostCreateFilgerIcon
+			self.PBuffs:SetPoint("TOPRIGHT", P_BUFF_ICON_Anchor)
+			self.PBuffs.tooltipAnchor = "ANCHOR_TOPRIGHT"
+			self.PBuffs.tooltipOffsetY = 3
+			self.PBuffs.disableMouse = not C.filger.show_tooltip
+
+			self.PBuffs:AddGroup("HELPFUL|PLAYER|!BIG_DEFENSIVE", {
+				maxFrameCount = 6,
+				candidateFilters = {includeSpellIDs = T.Filger_P_BUFF}
+			})
+		end
+		if C.filger.show_proc then
+			-- Player's Proc
+			self.PProc = self:CreateAuras({
+				growthX = "RIGHT",
+				growthY = "UP",
+				layoutLimit = (C.filger.buffs_size + C.filger.buffs_space) * 6
+			})
+			self.PProc.size = C.filger.buffs_size
+			self.PProc.showCount = true
+			self.PProc.elementSpacing = C.filger.buffs_space
+			self.PProc.sortDirection = AuraContainerSortDirection.Reverse
+			self.PProc.PostCreateButton = T.PostCreateFilgerIcon
+			self.PProc:SetPoint("TOPLEFT", P_PROC_ICON_Anchor)
+			self.PProc.tooltipAnchor = "ANCHOR_TOPLEFT"
+			self.PProc.tooltipOffsetY = 3
+			self.PProc.disableMouse = not C.filger.show_tooltip
+
+			self.PProc:AddGroup("HELPFUL|PLAYER", {
+				maxFrameCount = 6,
+				candidateFilters = {includeSpellIDs = T.Filger_P_PROC}
+			})
+		end
+	elseif unit == "target" then
+		if C.filger.show_pvp_target then
+			-- Crowd controls
+			self.CCDebuffsT = self:CreateAuras({
+				growthX = "RIGHT",
+				growthY = "UP",
+				layoutLimit = C.filger.pvp_size + C.filger.pvp_space
+			})
+			self.CCDebuffsT.size = C.filger.pvp_size
+			self.CCDebuffsT.showCount = true
+			self.CCDebuffsT.lineSpacing = C.filger.pvp_space
+			self.CCDebuffsT.sortDirection = AuraContainerSortDirection.Reverse
+			self.CCDebuffsT.PostCreateButton = T.PostCreateFilgerIcon
+			self.CCDebuffsT:SetPoint("TOPLEFT", T_CC_Anchor)
+			self.CCDebuffsT.tooltipAnchor = "ANCHOR_TOPLEFT"
+			self.CCDebuffsT.tooltipOffsetY = 3
+			self.CCDebuffsT.disableMouse = not C.filger.show_tooltip
+
+			self.CCDebuffsT:AddGroup("HARMFUL|CROWD_CONTROL", {
+				maxFrameCount = 2,
+			})
+		end
+		if C.filger.show_pvp_target then
+			-- Defensive spells on target
+			self.TBuffs = self:CreateAuras({
+				growthX = "RIGHT",
+				growthY = "UP",
+				layoutLimit = C.filger.pvp_size + C.filger.pvp_space
+			})
+			self.TBuffs.size = C.filger.pvp_size
+			self.TBuffs.showCount = true
+			self.TBuffs.lineSpacing = C.filger.pvp_space
+			self.TBuffs.sortDirection = AuraContainerSortDirection.Reverse
+			self.TBuffs.PostCreateButton = T.PostCreateFilgerIcon
+			self.TBuffs:SetPoint("TOPLEFT", T_BUFF_Anchor)
+			self.TBuffs.tooltipAnchor = "ANCHOR_TOPLEFT"
+			self.TBuffs.tooltipOffsetY = 3
+			self.TBuffs.disableMouse = not C.filger.show_tooltip
+
+			self.TBuffs:AddGroup("HELPFUL|BIG_DEFENSIVE|!EXTERNAL_DEFENSIVE", {
+				maxFrameCount = 1
+			})
+			self.TBuffs:AddGroup("HELPFUL|EXTERNAL_DEFENSIVE", {
+				maxFrameCount = 1
+			})
+		end
+		if C.filger.show_debuff then
+			-- Player's Debuffs on target
+			self.PDebuffs = self:CreateAuras({
+				growthX = "RIGHT",
+				growthY = "UP",
+				layoutLimit = (C.filger.buffs_size + C.filger.buffs_space) * 6
+			})
+			self.PDebuffs.size = C.filger.buffs_size
+			self.PDebuffs.showCount = true
+			self.PDebuffs.elementSpacing = C.filger.buffs_space
+			self.PDebuffs.sortDirection = AuraContainerSortDirection.Reverse
+			self.PDebuffs.PostCreateButton = T.PostCreateFilgerIcon
+			self.PDebuffs:SetPoint("TOPLEFT", T_DEBUFF_ICON_Anchor)
+			self.PDebuffs.tooltipAnchor = "ANCHOR_TOPLEFT"
+			self.PDebuffs.tooltipOffsetY = 3
+			self.PDebuffs.disableMouse = not C.filger.show_tooltip
+
+			self.PDebuffs:AddGroup("HARMFUL|PLAYER|!CROWD_CONTROL", {
+				maxFrameCount = 6,
+				candidateFilters = {includeSpellIDs = T.Filger_T_DEBUFF}
+			})
+		end
+		if C.filger.show_aura_bar then
+			-- Player's Debuffs bar on target
+			self.BarDebuffs = self:CreateAuras({
+				growthX = "RIGHT",
+				growthY = "UP",
+				layoutLimit = 28,
+				initialAnchor = "BOTTOMLEFT"
+			})
+			self.BarDebuffs.size = 25
+			self.BarDebuffs.showCount = true
+			self.BarDebuffs.lineSpacing = C.filger.buffs_space
+			self.BarDebuffs.sortDirection = AuraContainerSortDirection.Reverse
+			self.BarDebuffs.PostCreateButton = T.PostCreateFilgerIcon
+			self.BarDebuffs:SetPoint("BOTTOMLEFT", T_DE_BUFF_BAR_Anchor)
+			self.BarDebuffs.tooltipAnchor = "ANCHOR_TOPLEFT"
+			self.BarDebuffs.tooltipOffsetY = 3
+			self.BarDebuffs.disableMouse = not C.filger.show_tooltip
+
+			self.BarDebuffs:AddGroup("HARMFUL|PLAYER", {
+				isBar = true,
+				maxFrameCount = 6,
+				candidateFilters = {includeSpellIDs = T.Filger_T_BAR}
+			})
+
+			self.BarDebuffs:AddGroup("HELPFUL|PLAYER", {
+				isBar = true,
+				maxFrameCount = 6,
+				candidateFilters = {includeSpellIDs = T.Filger_T_BAR}
+			})
+		end
+	elseif unit == "focus" then
+		if C.filger.show_aura_bar then
+			-- CC Debuffs bar on focus
+			self.CCBarDebuffs = self:CreateAuras({
+				growthX = "RIGHT",
+				growthY = "UP",
+				layoutLimit = 28,
+				initialAnchor = "BOTTOMLEFT"
+			})
+			self.CCBarDebuffs.size = 25
+			self.CCBarDebuffs.showCount = true
+			self.CCBarDebuffs.lineSpacing = C.filger.buffs_space
+			self.CCBarDebuffs.sortDirection = AuraContainerSortDirection.Reverse
+			self.CCBarDebuffs.PostCreateButton = T.PostCreateFilgerIcon
+			self.CCBarDebuffs:SetPoint("BOTTOMLEFT", FOCUS_CC_Anchor)
+			self.CCBarDebuffs.tooltipAnchor = "ANCHOR_TOPLEFT"
+			self.CCBarDebuffs.tooltipOffsetY = 3
+			self.CCBarDebuffs.disableMouse = not C.filger.show_tooltip
+
+			self.CCBarDebuffs:AddGroup("HARMFUL|CROWD_CONTROL", {
+				isBar = true,
+				isFocus = true,
+				maxFrameCount = 1
+			})
+		end
+	end
 end

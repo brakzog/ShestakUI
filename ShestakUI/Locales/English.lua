@@ -45,6 +45,7 @@ L_MISC_HEADER_MARK = "Mouseover Raid Icons"
 L_MISC_BINDER_OPEN = "Mouse Bindings"
 L_MISC_SCROLL = "Scroll"
 L_MISC_HEADER_QUEST = "Auto quest button"
+L_MISC_DESTROY_ITEM = "Do you want to destroy this item?"
 BINDING_NAME_QUEST_BUTTON = AUCTION_HOUSE_HEADER_ITEM
 
 -- Raid Utility

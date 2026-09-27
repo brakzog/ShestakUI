@@ -37,13 +37,33 @@ local function SetInside(obj, anchor, xOffset, yOffset)
 	obj:SetPoint("BOTTOMRIGHT", anchor, "BOTTOMRIGHT", -xOffset, yOffset)
 end
 
-local function SetMovePoint(self, x, y, point, anchor, attachTo)
-	local old_point, old_anchor, old_attachTo, old_x, old_y = self:GetPoint()
+local function SetNewPoint(obj, x, y, point, anchor, attachTo)
+	local old_point, old_anchor, old_attachTo, old_x, old_y = obj:GetPoint()
 	if point or attachTo then
-		self:ClearAllPoints()
+		obj:ClearAllPoints()
 	end
 
-	self:SetPoint(point or old_point, anchor or old_anchor, attachTo or old_attachTo, x or old_x, y or old_y)
+	obj:SetPoint(point or old_point, anchor or old_anchor, attachTo or old_attachTo, x or old_x, y or old_y)
+end
+
+local function SetMovePoint(obj, x, y, pointValue)
+	x = x or 0
+	y = y or 0
+
+	local old_point, old_anchor, old_attachTo, old_x, old_y = obj:GetPoint()
+	if pointValue then
+		for i = 1, obj:GetNumPoints() do
+			local point, relativeTo, relativePoint, xOfs, yOfs = obj:GetPoint(i)
+			if not point then
+				break
+			elseif point == pointValue then
+				old_point, old_anchor, old_attachTo, old_x, old_y = point, relativeTo, relativePoint, xOfs, yOfs
+				break
+			end
+		end
+	end
+
+	obj:SetPoint(old_point, old_anchor, old_attachTo, old_x + x, old_y + y)
 end
 
 ----------------------------------------------------------------------------------------
@@ -410,6 +430,7 @@ local function addAPI(object)
 	local mt = getmetatable(object).__index
 	if not object.SetOutside then mt.SetOutside = SetOutside end
 	if not object.SetInside then mt.SetInside = SetInside end
+	if not object.SetNewPoint then mt.SetNewPoint = SetNewPoint end
 	if not object.SetMovePoint then mt.SetMovePoint = SetMovePoint end
 	if not object.CreateOverlay then mt.CreateOverlay = CreateOverlay end
 	if not object.CreateBorder then mt.CreateBorder = CreateBorder end
@@ -1172,6 +1193,17 @@ function T.SkinFrameTab(frame)
 		frame.SelectedTexture:SetColorTexture(1, 0.82, 0, 0.3)
 	end
 
+	if frame.HighlightTexture then
+		frame.HighlightTexture:SetColorTexture(1, 1, 1, 0.3)
+		frame.HighlightTexture:ClearAllPoints()
+		frame.HighlightTexture:SetPoint("TOPLEFT", 4, -4)
+		frame.HighlightTexture:SetPoint("BOTTOMRIGHT", -4, 4)
+	end
+
+	if frame.TabGlow then
+		frame.TabGlow:SetAlpha(0)
+	end
+
 	-- Hover texture
 	for _, region in next, {frame:GetRegions()} do
 		if region:IsObjectType("Texture") then
@@ -1208,6 +1240,34 @@ function T.SkinFrame(frame, backdrop, x, y)
 	if portraitFrame then portraitFrame:SetAlpha(0) end
 	if portraitFrameOverlay then portraitFrameOverlay:SetAlpha(0) end
 	if artFrameOverlay then artFrameOverlay:SetAlpha(0) end
+end
+
+function T.CreateBorderTexture(f)
+	local top = f:CreateTexture(nil, "BORDER", nil, 1)
+	top:SetPoint("TOPLEFT", f, "TOPLEFT", 0, 0)
+	top:SetPoint("TOPRIGHT", f, "TOPRIGHT", 0, 0)
+	top:SetHeight(1)
+	top:SetTexture(C.media.blank)
+
+	local bottom = f:CreateTexture(nil, "BORDER", nil, 1)
+	bottom:SetPoint("BOTTOMLEFT", f, "BOTTOMLEFT")
+	bottom:SetPoint("BOTTOMRIGHT", f, "BOTTOMRIGHT")
+	bottom:SetHeight(1)
+	bottom:SetTexture(C.media.blank)
+
+	local left = f:CreateTexture(nil, "BORDER", nil, 1)
+	left:SetPoint("TOPLEFT", f, "TOPLEFT")
+	left:SetPoint("BOTTOMLEFT", f, "BOTTOMLEFT")
+	left:SetWidth(1)
+	left:SetTexture(C.media.blank)
+
+	local right = f:CreateTexture(nil, "BORDER", nil, 1)
+	right:SetPoint("TOPRIGHT", f, "TOPRIGHT")
+	right:SetPoint("BOTTOMRIGHT", f, "BOTTOMRIGHT")
+	right:SetWidth(1)
+	right:SetTexture(C.media.blank)
+
+	return top, bottom, left, right
 end
 
 local iconColors = {
@@ -1338,19 +1398,22 @@ function T.SkinCooldown(cooldown, name)
 
 	if name == "aura" then
 		cooldown:SetDrawEdge(false)
-		cooldown:SetSwipeColor(0, 0, 0, C.aura.show_spiral and 0.7 or 0)
+		cooldown:SetSwipeColor(0, 0, 0, C.aura.show_spiral and 0.5 or 0)
 		if not C.aura.show_timer then
 			cooldown:SetHideCountdownNumbers(true)
 		end
 		cooldown:SetCountdownFont("ShestakUI_AuraTimerFont")
 		text:SetHeight(C.font.auras_font_size)
-		-- cooldown:SetCountdownMillisecondsThreshold(5)
+		cooldown:SetCountdownMillisecondsThreshold(5)
 	elseif name == "actionbar" then
 		cooldown:SetCountdownFont("ShestakUI_ActionBarTimerFont")
 		text:SetHeight(C.font.cooldown_timers_font_size)
+		cooldown:SetCountdownFormatter(numberFormatter)
+	elseif name == "bar" then
+		cooldown:SetCountdownFont("ShestakUI_AuraTimerFont")
+		text:SetHeight(C.font.auras_font_size)
+		cooldown:SetCountdownMillisecondsThreshold(60)
 	end
-
-	cooldown:SetCountdownFormatter(numberFormatter)
 
 	text:ClearAllPoints()
 	text:SetPoint("LEFT", -2, 0)

@@ -33,7 +33,7 @@ local function Shared(self, unit)
 
 	-- Register click
 	self:RegisterForClicks("AnyUp")
-	self:SetScript("OnEnter", UnitFrame_OnEnter)
+	self:SetScript("OnEnter", T.UnitFrame_OnEnter)
 	self:SetScript("OnLeave", UnitFrame_OnLeave)
 
 	-- Backdrop for every units
@@ -240,27 +240,26 @@ local function Shared(self, unit)
 
 	-- Debuff icons
 	if unit == "party" and (not (suffix == "target")) and (not (suffix == "pet")) then
-		self.Debuffs = CreateFrame("Frame", self:GetName().."Debuffs", self)
+		self.Debuffs = self:CreateAuras({
+			initialAnchor = "LEFT",
+			growthY = "RIGHT",
+			growthY = "DOWN",
+			layoutLimit = 144
+		})
 		self.Debuffs:SetPoint("TOPLEFT", self, "BOTTOMLEFT", -2, -5)
-		self.Debuffs:SetHeight(18)
-		self.Debuffs:SetWidth(144)
 		self.Debuffs.size = T.Scale(18)
-		self.Debuffs.spacing = T.Scale(3)
-		self.Debuffs.initialAnchor = "LEFT"
-		self.Debuffs.num = 7
-		self.Debuffs.growthX = "RIGHT"
-		self.Debuffs.growthY = "DOWN"
+		self.Debuffs.elementSpacing = T.Scale(3)
+		self.Debuffs.showCount = true
 		self.Debuffs.PostCreateButton = T.PostCreateIcon
-		self.Debuffs.PostUpdateButton = T.PostUpdateIcon
+
+		self.Debuffs:AddGroup("HARMFUL", {
+			maxFrameCount = 7
+		})
 	end
 
 	-- Dispel highlight
 	if C.raidframe.plugins_debuffhighlight and not (suffix == "target" or suffix == "targettarget") then
-		self.DispelColor = self.Health:CreateTexture(nil, "OVERLAY")
-		self.DispelColor:SetAllPoints(self.Health)
-		self.DispelColor:SetTexture(C.media.highlight)
-		self.DispelColor:SetVertexColor(0, 0, 0, 0)
-		self.DispelColor:SetBlendMode("ADD")
+		T.DispelColor(self)
 	end
 
 	-- Incoming heals and heal/damage absorbs

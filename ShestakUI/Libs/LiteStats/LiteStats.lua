@@ -142,6 +142,7 @@ local function formatgold(style, amount)
 			.. (format("%.2d|cffeda55f%s|r", copper, COPPER_AMOUNT_SYMBOL))
 	end
 end
+T.FormatGold = formatgold
 
 local function zsub(s, ...) local t = {...} for i = 1, #t, 2 do s = gsub(s, t[i], t[i + 1]) end return s end
 local function abbr(t, s) return t[s] or zsub(_G[strupper(s).."_ONELETTER_ABBR"], "%%d", "", "^%s*", "") end
@@ -695,7 +696,7 @@ if friends.enabled then
 										notCheckable = true,
 										func = function(_, arg1)
 											menuFrame:Hide()
-											BNInviteFriend(arg1)
+											C_BattleNet.InviteFriend(arg1)
 										end
 									}
 								end
@@ -887,7 +888,7 @@ if guild.enabled then
 				AltUpdate(self)
 				if not self.gmotd then
 					if self.elapsed > 1 then C_GuildInfo.GuildRoster(); self.elapsed = 0 end
-					if not InCombatLockdown() and GetGuildRosterMOTD() ~= "" then self.gmotd = true; if self.hovered then self:GetScript("OnEnter")(self) end end
+					if not InCombatLockdown() and C_GuildInfo.GetMOTD() ~= "" then self.gmotd = true; if self.hovered then self:GetScript("OnEnter")(self) end end
 					self.elapsed = self.elapsed + u
 				end
 			end
@@ -960,7 +961,7 @@ if guild.enabled then
 				C_GuildInfo.GuildRoster()
 				local name, rank, level, zone, note, officernote, connected, status, class, isMobile, zone_r, zone_g, zone_b, classc, levelc, grouped
 				local total, numOnline, online = GetNumGuildMembers()
-				local gmotd = InCombatLockdown() and "" or GetGuildRosterMOTD()
+				local gmotd = InCombatLockdown() and "" or C_GuildInfo.GetMOTD()
 				if not online then online = numOnline > 0 and numOnline or 0 end
 
 				GameTooltip:SetOwner(self, "ANCHOR_NONE")
@@ -1022,6 +1023,15 @@ end
 --	Durability
 ----------------------------------------------------------------------------------------
 if durability.enabled then
+	local function updateDurability(self)
+		local dmin = 100
+		for id = 1, 18 do
+			local dur, dmax = GetInventoryItemDurability(id)
+			if dur ~= dmax then dmin = floor(min(dmin, dur / dmax * 100)) end
+		end
+		self.text:SetText(format(gsub(durability.fmt, "%[color%]", (gradient(dmin / 100))), dmin))
+	end
+
 	Inject("Durability", {
 		OnLoad = function(self)
 			-- if durability.man then DurabilityFrame.Show = DurabilityFrame.Hide end -- NOTE: This cause taint when open edit mode
@@ -1029,12 +1039,8 @@ if durability.enabled then
 		end,
 		OnEvent = function(self, event)
 			if event == "UPDATE_INVENTORY_DURABILITY" or event == "PLAYER_LOGIN" then
-				local dmin = 100
-				for id = 1, 18 do
-					local dur, dmax = GetInventoryItemDurability(id)
-					if dur ~= dmax then dmin = floor(min(dmin, dur / dmax * 100)) end
-				end
-				self.text:SetText(format(gsub(durability.fmt, "%[color%]", (gradient(dmin / 100))), dmin))
+				-- Use delay to solve 100% value
+				C_Timer.After(0.5, function() updateDurability(self) end)
 			elseif event == "MERCHANT_SHOW" and not (IsAltKeyDown() or IsShiftKeyDown()) then
 				if conf.AutoRepair and CanMerchantRepair() then
 					local cost, total = GetRepairAllCost(), 0
@@ -1685,9 +1691,26 @@ end
 --	Ping
 ----------------------------------------------------------------------------------------
 if ping.enabled then
+	local function OnEvent(self, unit)
+		if unit == P and ping.hide_self then return end
+		if UnitIsUnit(unit, "player") and ping.hide_self then return end
+		local class = (CUSTOM_CLASS_COLORS or RAID_CLASS_COLORS)[select(2, UnitClass(unit))]
+		self.text:SetText(format(ping.fmt, UnitName(unit)))
+		if class then
+			self.text:SetTextColor(class.r, class.g, class.b, 1)
+		else
+			self.text:SetTextColor(1, 1, 1, 1)
+		end
+		self.animGroup:Stop()
+		self.text:Show()
+		self.animGroup:Play()
+	end
+
 	Inject("Ping", {
 		OnLoad = function(self)
-			-- self:RegisterEvent("MINIMAP_PING") -- BETA not event now and callback is secret
+			if not T.Midnight then -- 12.1.0 Can use only Blizzard
+				self:RegisterEventCallback("MINIMAP_PING", OnEvent)
+			end
 			self.animGroup = self.text:CreateAnimationGroup()
 			self.anim = self.animGroup:CreateAnimation("Alpha")
 			self.animGroup:SetScript("OnFinished", function() self.text:Hide() end)
@@ -1695,19 +1718,6 @@ if ping.enabled then
 			self.anim:SetToAlpha(0)
 			self.anim:SetDuration(2.8)
 			self.anim:SetStartDelay(5)
-		end,
-		OnEvent = function(self, _, unit)
-			if unit == P and ping.hide_self then return end
-			local class = (CUSTOM_CLASS_COLORS or RAID_CLASS_COLORS)[select(2, UnitClass(unit))]
-			self.text:SetText(format(ping.fmt, UnitName(unit)))
-			if class then
-				self.text:SetTextColor(class.r, class.g, class.b, 1)
-			else
-				self.text:SetTextColor(1, 1, 1, 1)
-			end
-			self.animGroup:Stop()
-			self.text:Show()
-			self.animGroup:Play()
 		end
 	})
 end

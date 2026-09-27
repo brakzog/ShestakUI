@@ -49,6 +49,7 @@ L_MISC_HEADER_MARK = "鼠标悬停显示团队图标"
 L_MISC_BINDER_OPEN = "鼠标绑定"
 L_MISC_SCROLL = "附魔羊皮纸"
 L_MISC_HEADER_QUEST = "任务道具按钮"
+L_MISC_DESTROY_ITEM = "你要销毁此物品吗？" -- Needs review
 
 -- Raid Utility
 L_RAID_UTIL_DISBAND = "解散团队"

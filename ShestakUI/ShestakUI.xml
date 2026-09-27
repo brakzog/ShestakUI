@@ -29,7 +29,6 @@
 	<Script file="Modules\UnitFrames\Colors.lua"/>
 
 	<Script file="Config\Filters\Announcements.lua"/>
-	<Script file="Config\Filters\ArenaControl.lua"/>
 	<Script file="Config\Filters\AutoButton.lua"/>
 	<Script file="Config\Filters\BadBuffs.lua"/>
 	<Script file="Config\Filters\ChannelingTicks.lua"/>
@@ -38,7 +37,7 @@
 	<Script file="Config\Filters\Cooldowns.lua"/>
 	<Script file="Config\Filters\Diminishing.lua"/>
 	<Script file="Config\Filters\Errors.lua"/>
-	<!-- <Script file="Config\Filters\FilgerSpells.lua"/> -->
+	<Script file="Config\Filters\FilgerSpells.lua"/>
 	<Script file="Config\Filters\Nameplates.lua"/>
 	<Script file="Config\Filters\OpenItems.lua"/>
 	<Script file="Config\Filters\RaidAuraWatch.lua"/>
@@ -111,7 +110,6 @@
 	<Script file="Modules\Announcements\SafariHat.lua"/>
 	<Script file="Modules\Announcements\Spells.lua"/>
 
-	<Script file="Modules\Auras\AuraSource.lua"/>
 	<Script file="Modules\Auras\BuffFrame.lua"/>
 	<Script file="Modules\Auras\Filger.lua"/>
 	<Script file="Modules\Auras\SelfBuffsReminder.lua"/>
@@ -210,7 +208,6 @@
 	<Script file="Modules\Skins\Details.lua"/>
 	<Script file="Modules\Skins\Dominos.lua"/>
 	<Script file="Modules\Skins\FlyoutButtonCustom.lua"/>
-	<Script file="Modules\Skins\MageNuggets.lua"/>
 	<Script file="Modules\Skins\MyRolePlay.lua"/>
 	<Script file="Modules\Skins\OPie.lua"/>
 	<Script file="Modules\Skins\Plater.lua"/>
@@ -226,7 +223,6 @@
 	<Script file="Modules\Tooltip\Achievement.lua"/>
 	<Script file="Modules\Tooltip\ItemIcons.lua"/>
 	<Script file="Modules\Tooltip\ItemLevel.lua"/>
-	<Script file="Modules\Tooltip\MountSource.lua"/>
 	<Script file="Modules\Tooltip\MultiItemRef.lua"/>
 	<Script file="Modules\Tooltip\RuFix.lua"/>
 	<Script file="Modules\Tooltip\SpellID.lua"/>

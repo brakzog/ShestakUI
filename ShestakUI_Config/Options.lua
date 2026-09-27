@@ -169,8 +169,8 @@ local FilgerTable = {
 	L.filger_show_proc,
 	L.filger_show_debuff,
 	L.filger_show_aura_bar,
-	L.filger_show_aura_bar_player,
-	L.filger_show_cd,
+	-- L.filger_show_aura_bar_player,
+	-- L.filger_show_cd,
 	IGNORE
 }
 
@@ -400,8 +400,8 @@ ns.HideSpellList = function()
 	InputSpell:SetText("")
 	InputSpell.value = ""
 	InputArg:SetText("")
-	-- UIDropDownMenu_SetText(ShestakUIOptionsPanelfilgercategory_listDropDown, "") -- BETA
-	-- ShestakUIOptionsPanelfilgercategory_listDropDown.selectedValue = nil
+	UIDropDownMenu_SetText(ShestakUIOptionsPanelfilgercategory_listDropDown, "")
+	ShestakUIOptionsPanelfilgercategory_listDropDown.selectedValue = nil
 	AddSpellButton:Disable()
 	SpellList:Hide()
 end
@@ -937,26 +937,24 @@ do
 	local profileVar = "General"
 	local function startExport()
 		local Prefix = "ShestakUI:Profile:"
-		local LibDeflate = LibStub:GetLibrary("LibDeflate")
-		local LibSerialize = LibStub("LibSerialize")
 
 		local Serialized
 		if profileVar == "General" then
 			local i = tostring(ShestakUIOptionsGlobal["Current_Profile"])
-			Serialized = LibSerialize:Serialize(ShestakUIOptions[i])
+			Serialized = C_EncodingUtil.SerializeCBOR(ShestakUIOptions[i])
 		elseif profileVar == "Personal" then
 			local i = tostring(ShestakUIOptionsGlobal[realm]["Current_Profile"][name])
-			Serialized = LibSerialize:Serialize(ShestakUIOptionsPerChar[i])
+			Serialized = C_EncodingUtil.SerializeCBOR(ShestakUIOptionsPerChar[i])
 		elseif profileVar == "Mover" then
 			local i = tostring(ShestakUIOptionsGlobal["Current_Profile"])
-			Serialized = LibSerialize:Serialize(ShestakUIPositions[i])
+			Serialized = C_EncodingUtil.SerializeCBOR(ShestakUIPositions[i])
 		elseif profileVar == "Mover_Personal" then
 			local i = tostring(ShestakUIOptionsGlobal[realm]["Current_Profile"][name])
-			Serialized = LibSerialize:Serialize(ShestakUIPositionsPerChar[i])
+			Serialized = C_EncodingUtil.SerializeCBOR(ShestakUIPositionsPerChar[i])
 		end
 
-		local Compressed = LibDeflate:CompressDeflate(Serialized, {level = 9})
-		local Encoded = LibDeflate:EncodeForPrint(Compressed)
+		local Compressed = C_EncodingUtil.CompressString(Serialized, Enum.CompressionMethod.Deflate, Enum.CompressionLevel.Default)
+		local Encoded = C_EncodingUtil.EncodeBase64(Compressed)
 		local Result = Prefix..Encoded
 		StaticPopup_Show("SHESTAKUI_EXPORT_PROFILE", _, _, Result)
 	end
@@ -977,16 +975,14 @@ do
 		OnAccept = function()
 			local Code = selfTextImport
 			local Prefix = "ShestakUI:Profile:"
-			local LibDeflate = LibStub:GetLibrary("LibDeflate")
-			local LibSerialize = LibStub("LibSerialize")
 
 			local LibCode = string.gsub(Code, Prefix, "")
-			local Decoded = LibDeflate:DecodeForPrint(LibCode)
+			local Decoded = C_EncodingUtil.DecodeBase64(LibCode)
 
 			if Decoded then
-				local Decompressed = LibDeflate:DecompressDeflate(Decoded)
-				local Success, Table = LibSerialize:Deserialize(Decompressed)
-				if Success then
+				local Decompressed = C_EncodingUtil.DecompressString(Decoded, Enum.CompressionMethod.Deflate)
+				local Table = C_EncodingUtil.DeserializeCBOR(Decompressed)
+				if Table then
 					if profileVar == "General" then
 						local i = tostring(ShestakUIOptionsGlobal["Current_Profile"])
 						ShestakUIOptions[i] = Table
@@ -1066,18 +1062,6 @@ do
 	tinsert(ns.buttons, ImportMoveButton)
 
 	C_Timer.After(0.3, function() -- need to grab SavedVariables and loaded libraries
-		local LibDeflate = LibStub and LibStub:GetLibrary("LibDeflate", true)
-		local LibSerialize = LibStub and LibStub:GetLibrary("LibSerialize", true)
-		local LibsExist = LibDeflate and LibSerialize
-
-		if not LibsExist then
-			ExportButton:Disable()
-			ImportButton:Disable()
-			ExportMoveButton:Disable()
-			ImportMoveButton:Disable()
-			status:SetText(L.profile_error_lib)
-		end
-
 		-- Use existing function in Core.lua to create dropdown with name via SavedVariables
 		local function SaveValue(f, value)
 			if not C.options[f.group] then C.options[f.group] = {} end
@@ -1488,7 +1472,6 @@ do
 		{"details"},
 		{"dominos"},
 		{"flyout_button"},
-		{"mage_nuggets"},
 		{"my_role_play"},
 		{"opie"},
 		{"plater"},
@@ -1881,19 +1864,16 @@ do
 	local plugins_debuffs_timer = ns.CreateCheckBox(parent, "plugins_debuffs_timer")
 	plugins_debuffs_timer:SetPoint("TOPLEFT", plugins_debuffs, "BOTTOMLEFT", 20, 0)
 
-	local plugins_private_auras = ns.CreateCheckBox(parent, "plugins_private_auras")
-	plugins_private_auras:SetPoint("TOPLEFT", plugins_debuffs_timer, "BOTTOMLEFT", 0, 0)
-
 	-- local plugins_debuffhighlight_icon = ns.CreateCheckBox(parent, "plugins_debuffhighlight_icon")
 	-- plugins_debuffhighlight_icon:SetPoint("TOPLEFT", plugins_debuffs_timer, "BOTTOMLEFT", 0, 0)
 
 	-- local plugins_pvp_debuffs = ns.CreateCheckBox(parent, "plugins_pvp_debuffs")
 	-- plugins_pvp_debuffs:SetPoint("TOPLEFT", plugins_debuffhighlight_icon, "BOTTOMLEFT", 0, 0)
 
-	plugins_debuffs.children = {plugins_debuffs_timer, plugins_private_auras, plugins_debuffhighlight_icon, plugins_pvp_debuffs}
+	plugins_debuffs.children = {plugins_debuffs_timer, plugins_debuffhighlight_icon, plugins_pvp_debuffs}
 
 	local plugins_buffs = ns.CreateCheckBox(parent, "plugins_buffs")
-	plugins_buffs:SetPoint("TOPLEFT", plugins_private_auras, "BOTTOMLEFT", -20, 0)
+	plugins_buffs:SetPoint("TOPLEFT", plugins_debuffs_timer, "BOTTOMLEFT", -20, 0)
 
 	local plugins_buffs_timer = ns.CreateCheckBox(parent, "plugins_buffs_timer")
 	plugins_buffs_timer:SetPoint("TOPLEFT", plugins_buffs, "BOTTOMLEFT", 20, 0)
@@ -2458,46 +2438,46 @@ do
 	track_debuffs:SetPoint("TOPLEFT", clamp, "BOTTOMLEFT", 0, 0)
 	track_debuffs.Text:SetWidth(350)
 
-	-- local ListButton = CreateFrame("Button", nil, parent, "UIPanelButtonTemplate")
-	-- ListButton:SetPoint("LEFT", track_debuffs, "RIGHT", 400, 0)
-	-- ListButton:SetSize(100, 23)
-	-- ListButton:SetText(ADD)
-	-- ListButton:SetWidth(ListButton.Text:GetWidth() + 15)
-	-- ListButton:RegisterForClicks("AnyUp")
-	-- ListButton:SetScript("OnClick", function(_, btn)
-		-- if not C.options["nameplate"] then
-			-- C.options["nameplate"] = {}
-		-- end
-		-- if btn == "LeftButton" then
-			-- if not C.options["nameplate"]["debuffs_list"] then
-				-- C.options["nameplate"]["debuffs_list"] = {}
-			-- end
-			-- BuildSpellList(C.options["nameplate"]["debuffs_list"])
-		-- else
-			-- if not C.options["nameplate"]["ignore_list"] then
-				-- C.options["nameplate"]["ignore_list"] = {}
-			-- end
-			-- BuildSpellList(C.options["nameplate"]["ignore_list"])
-		-- end
-	-- end)
-	-- tinsert(ns.buttons, ListButton)
+	local ListButton = CreateFrame("Button", nil, parent, "UIPanelButtonTemplate")
+	ListButton:SetPoint("LEFT", track_debuffs, "RIGHT", 400, 0)
+	ListButton:SetSize(100, 23)
+	ListButton:SetText(ADD)
+	ListButton:SetWidth(ListButton.Text:GetWidth() + 15)
+	ListButton:RegisterForClicks("AnyUp")
+	ListButton:SetScript("OnClick", function(_, btn)
+		if not C.options["nameplate"] then
+			C.options["nameplate"] = {}
+		end
+		if btn == "LeftButton" then
+			if not C.options["nameplate"]["debuffs_list"] then
+				C.options["nameplate"]["debuffs_list"] = {}
+			end
+			BuildSpellList(C.options["nameplate"]["debuffs_list"])
+		else
+			if not C.options["nameplate"]["ignore_list"] then
+				C.options["nameplate"]["ignore_list"] = {}
+			end
+			BuildSpellList(C.options["nameplate"]["ignore_list"])
+		end
+	end)
+	tinsert(ns.buttons, ListButton)
 
-	-- local tooltip_show = function(self)
-		-- GameTooltip:SetOwner(self, "ANCHOR_RIGHT", 3, 3)
-		-- GameTooltip:ClearLines()
-		-- GameTooltip:SetText(RIGHT_BUTTON_STRING..": "..IGNORE)
-	-- end
+	local tooltip_show = function(self)
+		GameTooltip:SetOwner(self, "ANCHOR_RIGHT", 3, 3)
+		GameTooltip:ClearLines()
+		GameTooltip:SetText(RIGHT_BUTTON_STRING..": "..IGNORE)
+	end
 
-	-- ListButton:HookScript("OnEnter", tooltip_show)
-	-- ListButton:HookScript("OnLeave", function() GameTooltip:Hide() end)
+	ListButton:HookScript("OnEnter", tooltip_show)
+	ListButton:HookScript("OnLeave", function() GameTooltip:Hide() end)
 
-	-- local function toggleListButton()
-		-- local shown = track_debuffs:GetChecked()
-		-- ListButton:SetEnabled(shown)
-	-- end
+	local function toggleListButton()
+		local shown = track_debuffs:GetChecked()
+		ListButton:SetEnabled(shown)
+	end
 
-	-- track_debuffs:HookScript("OnClick", toggleListButton)
-	-- ListButton:HookScript("OnShow", toggleListButton)
+	track_debuffs:HookScript("OnClick", toggleListButton)
+	ListButton:HookScript("OnShow", toggleListButton)
 
 	local track_buffs = ns.CreateCheckBox(parent, "track_buffs")
 	track_buffs:SetPoint("TOPLEFT", track_debuffs, "BOTTOMLEFT", 0, 0)
@@ -2884,8 +2864,8 @@ do
 	local show_buff = ns.CreateCheckBox(parent, "show_buff")
 	show_buff:SetPoint("TOPLEFT", subheader, "BOTTOMLEFT", 0, -10)
 
-	-- local show_proc = ns.CreateCheckBox(parent, "show_proc")
-	-- show_proc:SetPoint("LEFT", show_buff, "RIGHT", 320, 0)
+	local show_proc = ns.CreateCheckBox(parent, "show_proc")
+	show_proc:SetPoint("LEFT", show_buff, "RIGHT", 320, 0)
 
 	local show_debuff = ns.CreateCheckBox(parent, "show_debuff")
 	show_debuff:SetPoint("TOPLEFT", show_buff, "BOTTOMLEFT", 0, 0)
@@ -2938,21 +2918,21 @@ do
 	-- max_test_icon:SetPoint("TOPLEFT", test_mode, "BOTTOMLEFT", 0, -20)
 
 	-- Spell List
-	-- local subheader = ns.addSubCategory(parent, L.filger_subheader_spells)
-	-- subheader:SetPoint("TOPLEFT", max_test_icon, "BOTTOMLEFT", 0, -11)
+	local subheader = ns.addSubCategory(parent, L.filger_subheader_spells)
+	subheader:SetPoint("TOPLEFT", pvp_size, "BOTTOMLEFT", 0, -11)
 
-	-- local category_list = ns.CreateDropDown(parent, "category_list", true, L.filger_category_list, FilgerTable)
-	-- category_list:SetPoint("TOPLEFT", subheader, "BOTTOMLEFT", -16, -10)
+	local category_list = ns.CreateDropDown(parent, "category_list", true, L.filger_category_list, FilgerTable)
+	category_list:SetPoint("TOPLEFT", subheader, "BOTTOMLEFT", -16, -10)
 
-	-- hooksecurefunc(category_list, "SetValue", function()
-		-- if not C.options["filger"] then
-			-- C.options["filger"] = {}
-		-- end
-		-- if not C.options["filger"][FilgerDropDownText[category_list.selectedValue]] then
-			-- C.options["filger"][FilgerDropDownText[category_list.selectedValue]] = {}
-		-- end
-		-- BuildSpellList(C.options["filger"][FilgerDropDownText[category_list.selectedValue]], false, true)
-	-- end)
+	hooksecurefunc(category_list, "SetValue", function()
+		if not C.options["filger"] then
+			C.options["filger"] = {}
+		end
+		if not C.options["filger"][FilgerDropDownText[category_list.selectedValue]] then
+			C.options["filger"][FilgerDropDownText[category_list.selectedValue]] = {}
+		end
+		BuildSpellList(C.options["filger"][FilgerDropDownText[category_list.selectedValue]], false, true)
+	end)
 end
 
 -- Announcements
@@ -3588,7 +3568,11 @@ local function PositionGameMenuButton()
 		if text and text == HUD_EDIT_MODE_MENU then
 			button:SetScript("OnClick", function()
 				PlaySound(SOUNDKIT.IG_MAINMENU_OPTION)
-				SlashCmdList.MOVING()
+				if IsModifierKeyDown() then
+					ShowUIPanel(_G.EditModeManagerFrame)
+				else
+					SlashCmdList.MOVING()
+				end
 				HideUIPanel(GameMenuFrame)
 			end)
 		end

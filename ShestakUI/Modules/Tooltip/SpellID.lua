@@ -4,7 +4,6 @@ if C.tooltip.enable ~= true or C.tooltip.spell_id ~= true then return end
 ----------------------------------------------------------------------------------------
 --	Spell/Item IDs(idTip by Silverwind)
 ----------------------------------------------------------------------------------------
-local debuginfo = false
 local function addLine(self, id, isItem)
 	for i = 1, self:NumLines() do
 		local line = _G[self:GetName().."TextLeft"..i]
@@ -22,24 +21,6 @@ local function addLine(self, id, isItem)
 end
 
 -- Spells
-hooksecurefunc(GameTooltip, "SetUnitAura", function(self, ...)
-	local aura = C_UnitAuras.GetAuraDataByIndex(...)
-	local id = aura and aura.spellId
-	if id then addLine(self, id) end
-	if debuginfo == true and id and IsModifierKeyDown() then print(UnitAura(...)..": "..id) end
-end)
-
-local function attachByAuraInstanceID(self, ...)
-	local aura = C_UnitAuras.GetAuraDataByAuraInstanceID(...)
-	local id = aura and aura.spellId
-	if id then addLine(self, id) end
-	if debuginfo == true and id and IsModifierKeyDown() then print(aura.name..": "..id) end
-end
-
-hooksecurefunc(GameTooltip, "SetUnitBuffByAuraInstanceID", attachByAuraInstanceID)
-hooksecurefunc(GameTooltip, "SetUnitDebuffByAuraInstanceID", attachByAuraInstanceID)
-hooksecurefunc(GameTooltip, "SetUnitAuraByAuraInstanceID", attachByAuraInstanceID)	-- from oUF Auras
-
 hooksecurefunc("SetItemRef", function(link)
 	local id = tonumber(link:match("spell:(%d+)"))
 	if id then addLine(ItemRefTooltip, id) end
@@ -92,15 +73,3 @@ TooltipDataProcessor.AddTooltipPostCall(Enum.TooltipDataType.Toy, function(self,
 		addLine(self, data.id, true)
 	end
 end)
-
-SlashCmdList.SHOWSPELLID = function()
-	if not debuginfo then
-		debuginfo = true
-	else
-		debuginfo = false
-	end
-end
-
-SLASH_SHOWSPELLID1 = "/showid"
-SLASH_SHOWSPELLID2 = "/si"
-SLASH_SHOWSPELLID3 = "/ыш"

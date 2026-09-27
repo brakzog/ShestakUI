@@ -50,27 +50,35 @@ local function LoadSkin()
 
 	T.SkinCloseButton(AchievementFrameCloseButton, AchievementFrame.backdrop)
 
-	T.SkinFilter(AchievementFrameFilterDropdown, true)
-	AchievementFrameFilterDropdown:ClearAllPoints()
-	AchievementFrameFilterDropdown:SetPoint("TOPLEFT", AchievementFrameAchievements, "TOPLEFT", 5, 21)
+	AchievementFrame.HeaderDetails.TopTileStreaks:SetAlpha(0)
+	AchievementFrame.HeaderDetails.Back:SkinButton()
+	AchievementFrame.HeaderDetails.Back:SetMovePoint(-2)
+
+	T.SkinFilter(AchievementFrame.HeaderDetails.Filters.FilterDropdown, true)
 
 	local frame = CreateFrame("Frame")
 	frame:RegisterEvent("ADDON_LOADED")
 	frame:SetScript("OnEvent", function()
 		if not C_AddOns.IsAddOnLoaded("Overachiever") then return end
-		AchievementFrameFilterDropdown:ClearAllPoints()
-		AchievementFrameFilterDropdown:SetPoint("TOPLEFT", AchievementFrameAchievements, "TOPLEFT", -19, 24)
+		-- AchievementFrame.HeaderDetails.Filters.FilterDropdown:ClearAllPoints()
+		-- AchievementFrame.HeaderDetails.Filters.FilterDropdown:SetPoint("TOPLEFT", AchievementFrameAchievements, "TOPLEFT", -19, 24)
 	end)
 
-	T.SkinEditBox(AchievementFrame.SearchBox)
-	AchievementFrame.SearchBox:SetHeight(15)
-	AchievementFrame.SearchBox:ClearAllPoints()
-	AchievementFrame.SearchBox:SetPoint("TOPRIGHT", AchievementFrame, "TOPRIGHT", -52, 0)
+	T.SkinEditBox(AchievementFrame.HeaderDetails.Filters.SearchBox)
+	AchievementFrame.HeaderDetails.Filters.SearchBox.backdrop:SetPoint("TOPLEFT", -2, -4)
+	AchievementFrame.HeaderDetails.Filters.SearchBox.backdrop:SetPoint("BOTTOMRIGHT", 0, 4)
 
-	AchievementFrame.SearchPreviewContainer:StripTextures()
-	AchievementFrame.SearchPreviewContainer:CreateBackdrop("Transparent")
-	AchievementFrame.SearchPreviewContainer.backdrop:SetPoint("TOPLEFT", -2, 2)
-	AchievementFrame.SearchPreviewContainer.backdrop:SetPoint("BOTTOMRIGHT", AchievementFrame.SearchPreviewContainer.ShowAllSearchResults, 2, -2)
+	hooksecurefunc(AchievementFrame.HeaderDetails.Filters.SearchBox, "SetPoint", function(self, point, x, y)
+		if x == -119 then
+			self:SetMovePoint(nil, -2)
+		end
+	end)
+
+	local preview = AchievementFrame.HeaderDetails.Filters.SearchBox.SearchPreviewContainer
+	preview:StripTextures()
+	preview:CreateBackdrop("Transparent")
+	preview.backdrop:SetPoint("TOPLEFT", -2, 2)
+	preview.backdrop:SetPoint("BOTTOMRIGHT", preview.ShowAllSearchResults, 2, -2)
 
 	AchievementFrame.SearchResults:StripTextures()
 	AchievementFrame.SearchResults:SetTemplate("Transparent")
@@ -403,8 +411,8 @@ local function LoadSkin()
 	KrowiAF_AchievementFrameBrowsingHistoryNextAchievementButton:ClearPoint("RIGHT")
 	KrowiAF_AchievementFrameBrowsingHistoryPrevAchievementButton:SetPoint("LEFT", KrowiAF_AchievementFrameFilterButton, "RIGHT", 3, 0)
 	KrowiAF_AchievementFrameBrowsingHistoryNextAchievementButton:SetPoint("LEFT", KrowiAF_AchievementFrameBrowsingHistoryPrevAchievementButton, "RIGHT", 3, 0)
-	AchievementFrameFilterDropdown:ClearAllPoints()
-	AchievementFrameFilterDropdown:SetPoint("TOPLEFT", AchievementFrameAchievements, "TOPLEFT", 35, 21)
+	AchievementFrame.HeaderDetails.Filters.FilterDropdown:ClearAllPoints()
+	AchievementFrame.HeaderDetails.Filters.FilterDropdown:SetPoint("TOPLEFT", AchievementFrameAchievements, "TOPLEFT", 35, 21)
 
 	-- [[ Categories ]]
 	local function SkinCategoryButton(_, button)

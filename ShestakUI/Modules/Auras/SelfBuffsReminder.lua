@@ -81,14 +81,14 @@ local function OnEvent(self, event, arg1)
 	if ((group.combat and UnitAffectingCombat("player")) or (group.instance and difficultyID ~= 0 and not C_Garrison.IsOnGarrisonMap()) or (group.pvp and (instanceType == "arena" or instanceType == "pvp"))) and
 	specpass == true and rolepass == true and not UnitInVehicle("player") then
 		if group.mainhand then
-			local hasMainHandEnchant = GetWeaponEnchantInfo()
+			local hasMainHandEnchant = C_PaperDollInfo.GetTemporaryEnchantmentInfo(INVSLOT_MAINHAND)
 			if not hasMainHandEnchant then
 				self:Show()
 				if canplaysound == true then PlaySoundFile(C.media.warning_sound, "Master") end
 			end
 			return
 		elseif group.offhand then
-			local _, _, _, _, hasOffHandEnchant = GetWeaponEnchantInfo()
+			local hasOffHandEnchant = C_PaperDollInfo.GetTemporaryEnchantmentInfo(INVSLOT_OFFHAND)
 			if not hasOffHandEnchant and (C_PaperDollInfo.OffhandHasWeapon() or C_PaperDollInfo.OffhandHasShield()) then
 				self:Show()
 				if canplaysound == true then PlaySoundFile(C.media.warning_sound, "Master") end
@@ -96,28 +96,29 @@ local function OnEvent(self, event, arg1)
 			return
 		end
 
-		wipe(playerBuff)
-		local i = 1
-		local secret
-		while true do
-			local name
-			local auraData = C_UnitAuras.GetAuraDataByIndex("player", i, "HELPFUL")
-			if auraData then
-				if canaccessvalue(auraData.name) then -- BETA
-					name = auraData.name
-				else
-					secret = true
-				end
-			end
-			if not name then break end
-			playerBuff[name] = true
-			i = i + 1
-		end
+		-- wipe(playerBuff)
+		-- local i = 1
+		-- local secret
+		-- while true do
+			-- local name
+			-- local auraData = C_UnitAuras.GetAuraDataByIndex("player", i, "HELPFUL")
+			-- if auraData then
+				-- if canaccessvalue(auraData.name) then -- BETA
+					-- name = auraData.name
+				-- else
+					-- secret = true
+				-- end
+			-- end
+			-- if not name then break end
+			-- playerBuff[name] = true
+			-- i = i + 1
+		-- end
+
 		if reversecheck then
 			if group.negate_reversecheck and group.negate_reversecheck == T.Spec then self:Hide() return end
 			for i = 1, #group.spells do
-				local name = group.spells[i][1]
-				if name and playerBuff[name] then
+				local name = group.spells[i][3]
+				if name and C_UnitAuras.GetPlayerAuraBySpellID(name) then
 					self:Show()
 					if canplaysound == true then PlaySoundFile(C.media.warning_sound, "Master") end
 					return
@@ -125,8 +126,8 @@ local function OnEvent(self, event, arg1)
 			end
 		else
 			for i = 1, #group.spells do
-				local name = group.spells[i][1]
-				if (name and playerBuff[name]) or secret then
+				local name = group.spells[i][3]
+				if name and C_UnitAuras.GetPlayerAuraBySpellID(name) then
 					self:Hide()
 					return
 				end

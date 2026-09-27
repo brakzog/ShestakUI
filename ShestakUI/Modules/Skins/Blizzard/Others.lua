@@ -479,31 +479,25 @@ SkinBlizzUI:SetScript("OnEvent", function(_, _, addon)
 				end
 			end
 
-			local function SkinIconArray(baseName, numIcons)
-				for i = 1, numIcons do
-					local button = _G[baseName..i]
-					local texture = _G[baseName..i.."Icon"]
-
-					button:StripTextures()
-					button:StyleButton(true)
-					button:SetTemplate("Default")
-
-					texture:ClearAllPoints()
-					texture:SetPoint("TOPLEFT", 2, -2)
-					texture:SetPoint("BOTTOMRIGHT", -2, 2)
-					texture:SetTexCoord(0.1, 0.9, 0.1, 0.9)
-				end
-			end
-
-			-- This is used to create icons for the GuildBankPopupFrame, MacroPopupFrame, and GearManagerDialogPopup
-			hooksecurefunc("BuildIconArray", function(_, baseName, _, rowSize, numRows)
-				local numIcons = rowSize * numRows
-				SkinIconArray(baseName, numIcons)
-			end)
-
 			hooksecurefunc(HelpTipTemplateMixin, "ApplyText", function(self)
 				T.SkinHelpBox(self)
 			end)
+
+			local ReportFrame = _G.ReportFrame
+			T.SkinFrame(ReportFrame)
+
+			ReportFrame.ScreenshotReportingFrame.TakeScreenshotButton:SkinButton()
+
+			T.SkinDropDownBox(ReportFrame.ReportingMajorCategoryDropdown)
+			ReportFrame.ReportButton:SkinButton()
+			T.SkinEditBox(ReportFrame.Comment)
+
+			T.SkinFrame(ReportCheatingDialog)
+
+			_G.ReportCheatingDialogCommentFrame:StripTextures()
+			_G.ReportCheatingDialogReportButton:SkinButton()
+			_G.ReportCheatingDialogCancelButton:SkinButton()
+			T.SkinEditBox(_G.ReportCheatingDialogCommentFrameEditBox)
 		end
 	end
 end)

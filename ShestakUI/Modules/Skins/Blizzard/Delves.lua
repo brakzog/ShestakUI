@@ -18,7 +18,10 @@ local function LoadFirstSkin()
 	local function SkinOptionSlot(frame, skip)
 		local option = frame.OptionsList
 		option:StripTextures()
-		option:SetTemplate("Transparent")
+		option:CreateBackdrop("Overlay")
+		option.backdrop:SetPoint("TOPLEFT", -5, 2)
+		option.backdrop:SetPoint("BOTTOMRIGHT", -2, -3)
+		option.backdrop:SetFrameLevel(option:GetFrameLevel() + 1)
 
 		if not skip then
 			hooksecurefunc(option.ScrollBox, "Update", function(self)
@@ -26,7 +29,9 @@ local function LoadFirstSkin()
 					if not button.styled then
 						if button.Border then button.Border:SetAlpha(0) end
 						if button.Icon then
+							button.Icon:SetSize(T.Scale(26), T.Scale(26))
 							button.Icon:SkinIcon()
+							button.Icon:SetNewPoint(6)
 						end
 
 						button.styled = true
@@ -36,9 +41,10 @@ local function LoadFirstSkin()
 		end
 	end
 
-	SkinOptionSlot(frame.CompanionCombatRoleSlot, true)
-	SkinOptionSlot(frame.CompanionUtilityTrinketSlot)
-	SkinOptionSlot(frame.CompanionCombatTrinketSlot)
+	SkinOptionSlot(frame.CompanionSlots.CompanionCombatRoleSlot, true)
+	SkinOptionSlot(frame.CompanionSlots.CompanionFlavorSlot)
+	SkinOptionSlot(frame.CompanionSlots.CompanionUtilityTrinketSlot)
+	SkinOptionSlot(frame.CompanionSlots.CompanionCombatTrinketSlot)
 
 	local ablityFrame = _G.DelvesCompanionAbilityListFrame
 	T.SkinFrame(ablityFrame)
@@ -50,7 +56,14 @@ local function LoadFirstSkin()
 		for _, button in pairs(self.buttons) do
 			if not button.styled then
 				if button.Icon then
-					button.Icon:SkinIcon()
+					if T.newPatch then
+						button.Icon:SkinIcon()
+						T.PixelPerfect(button.Icon)
+						T.PixelPerfect(button)
+						button:SetScale(0.99)
+					else
+						button.Icon:SetTexCoord(0.1, 0.9, 0.1, 0.9) -- bad pixel perfect
+					end
 				end
 
 				button.styled = true
@@ -89,7 +102,7 @@ local function LoadThirdSkin()
 	local frame = _G.DelvesDashboardFrame
 	frame.DashboardBackground:SetAlpha(0)
 	frame.ButtonPanelLayoutFrame.CompanionConfigButtonPanel.CompanionConfigButton:SkinButton(nil, "Button")
-	frame.ButtonPanelLayoutFrame.CompanionConfigButtonPanel.CompanionConfigButton:SetMovePoint(nil, 29)
+	frame.ButtonPanelLayoutFrame.CompanionConfigButtonPanel.CompanionConfigButton:SetNewPoint(nil, 29)
 
 	for _, panel in pairs({frame.ButtonPanelLayoutFrame.CompanionConfigButtonPanel, frame.ButtonPanelLayoutFrame.GreatVaultButtonPanel}) do
 		panel.ButtonPanelBackground:SetAlpha(0)

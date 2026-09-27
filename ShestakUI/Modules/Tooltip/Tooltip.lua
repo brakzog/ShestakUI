@@ -65,6 +65,13 @@ for _, tt in pairs(tooltips) do
 	end
 end
 
+-- Aura container skin
+AuraContainerInbound.SetTooltipBackdrop({
+	backdropInfo = backdrop,
+	borderColor = CreateColor(unpack(C.media.border_color)),
+	centerColor = CreateColor(C.media.backdrop_color[1], C.media.backdrop_color[2], C.media.backdrop_color[3], C.media.backdrop_alpha)
+})
+
 -- LibExtraTip skin
 local frame = CreateFrame("Frame")
 frame:RegisterEvent("PLAYER_LOGIN")
@@ -121,8 +128,24 @@ local anchor = CreateFrame("Frame", "TooltipAnchor", UIParent)
 anchor:SetSize(200, 40)
 anchor:SetPoint(unpack(C.position.tooltip))
 
--- Hide PVP text
-PVP_ENABLED = ""
+-- Hide unwanted lines
+local validTooltip = {[GameTooltip] = true, [GameTooltipTooltip] = true, [ItemRefTooltip] = true}
+local removeLines = {[_G.FACTION_ALLIANCE] = true, [_G.FACTION_HORDE] = true, [_G.PVP] = true}
+TooltipDataProcessor.AddLinePreCall(Enum.TooltipDataLineType.None, function(tooltip, lineData)
+	if not validTooltip[tooltip] or tooltip:IsForbidden() then return end
+	if not tooltip:IsTooltipType(Enum.TooltipDataType.Unit) then return end
+
+	if T.NotSecretValue(lineData.leftText) and removeLines[lineData.leftText] then
+		return true
+	end
+end)
+
+TooltipDataProcessor.AddLinePreCall(Enum.TooltipDataLineType.Blank, function(tooltip)
+	if not validTooltip[tooltip] or tooltip:IsForbidden() then return end
+	if not tooltip:IsTooltipType(Enum.TooltipDataType.Unit) then return end
+
+	return true
+end)
 
 -- Statusbar
 GameTooltipStatusBar:SetStatusBarTexture(C.media.texture)
@@ -171,6 +194,12 @@ local function AddTargetedBy()
 	end
 end
 
+-- Add caster name and spell id line
+if T.newPatch then
+	C_CVar.SetCVar("tooltipShowAuraCasterNames", C.aura.cast_by and 1 or 0)
+	C_CVar.SetCVar("tooltipShowAuraSpellIDs", C.tooltip.spell_id and 1 or 0)
+end
+
 ----------------------------------------------------------------------------------------
 --	Unit tooltip styling
 ----------------------------------------------------------------------------------------
@@ -180,7 +209,7 @@ local function GetColor(unit)
 
 	if UnitIsPlayer(unit) or UnitInPartyIsAI(unit) then
 		local _, class = UnitClass(unit)
-		local color = (CUSTOM_CLASS_COLORS or RAID_CLASS_COLORS)[class]
+		local color = canaccessvalue(class) and (CUSTOM_CLASS_COLORS or RAID_CLASS_COLORS)[class]
 		if color then
 			r, g, b = color.r, color.g, color.b
 		else
@@ -201,7 +230,7 @@ local function GetColor(unit)
 end
 
 local function GameTooltipDefault(tooltip, parent)
-	if C.tooltip.cursor == true then
+	if C.tooltip.cursor then
 		tooltip:SetOwner(parent, "ANCHOR_CURSOR_RIGHT", 20, 20)
 	else
 		tooltip:SetOwner(parent, "ANCHOR_NONE")
@@ -220,7 +249,7 @@ local function GameTooltipDefault(tooltip, parent)
 end
 hooksecurefunc("GameTooltip_SetDefaultAnchor", GameTooltipDefault)
 
-if C.tooltip.shift_modifer == true then
+if C.tooltip.shift_modifer then
 	GameTooltip:SetScript("OnShow", function(self)
 		if IsShiftKeyDown() then
 			self:Show()
@@ -232,7 +261,7 @@ if C.tooltip.shift_modifer == true then
 	end)
 end
 
-if C.tooltip.health_value == true then
+if C.tooltip.health_value then
 	GameTooltipStatusBar:SetScript("OnValueChanged", function(self, value)
 		if not value then return end
 		-- local min, max = self:GetMinMaxValues()
@@ -267,6 +296,54 @@ if C.tooltip.health_value == true then
 			end
 		end
 	end)
+end
+
+if C.tooltip.mount then
+	local MountCache = {}
+	local frame = CreateFrame("Frame")
+	frame:RegisterEvent("PLAYER_LOGIN")
+	frame:SetScript("OnEvent", function()
+		for _, mountID in ipairs(C_MountJournal.GetMountIDs()) do
+			MountCache[select(2, C_MountJournal.GetMountInfoByID(mountID))] = mountID
+		end
+	end)
+
+	local function checkBuff(self, aura)
+		local id = aura and aura.spellId
+
+		if id and MountCache[id] then
+			local text = NOT_COLLECTED
+			local r, g, b = 1, 0, 0
+			local collected = select(11, C_MountJournal.GetMountInfoByID(MountCache[id]))
+
+			if collected then
+				text = COLLECTED
+				r, g, b = 0, 1, 0
+			end
+
+			self:AddLine(" ")
+			self:AddLine(text, r, g, b)
+
+			local sourceText = select(3, C_MountJournal.GetMountInfoExtraByID(MountCache[id]))
+			self:AddLine(sourceText, 1, 1, 1)
+			-- self:AddLine(" ")
+			self:Show()
+		end
+	end
+
+	T.MountSource = function(self, unit)
+		if T.IsSecretAuras() or T.unitIsUnit(unit, "player") then return end
+		for i = 1, 40 do
+			local auraData = C_UnitAuras.GetAuraDataByIndex(unit, i, "HELPFUL")
+			if auraData then
+				if auraData.spellId and canaccessvalue(auraData.spellId) then
+					checkBuff(self, auraData)
+				end
+			else
+				break
+			end
+		end
+	end
 end
 
 local function GetUnitToken(tt)
@@ -336,7 +413,7 @@ local OnTooltipSetUnit = function(self)
 			self:AppendText((" %s"):format("|cffFF0000"..L_CHAT_DND.."|r"))
 		end
 
-		if isPlayer and (englishRace == "Pandaren" or englishRace == "Dracthyr" or englishRace == "EarthenDwarf") and faction ~= nil and faction ~= playerFaction then
+		if T.NotSecretValue(englishRace) and (englishRace == "Pandaren" or englishRace == "Dracthyr" or englishRace == "EarthenDwarf" or englishRace == "Harronir") and faction ~= nil and faction ~= playerFaction then
 			local hex = "cffff3333"
 			if faction == "Alliance" then
 				hex = "cff69ccf0"
@@ -366,18 +443,6 @@ local OnTooltipSetUnit = function(self)
 		else
 			_G["GameTooltipTextLeft"..n]:SetFormattedText("|cff%02x%02x%02x%s|r %s", levelColor.r * 255, levelColor.g * 255, levelColor.b * 255, level, race or UNKNOWN)
 		end
-
-		for i = n + 1, lines do
-			local line = _G["GameTooltipTextLeft"..i]
-			if not line or not line:GetText() then return end
-			local text = line:GetText()
-			if T.NotSecretValue(text) then
-				if text == FACTION_HORDE or text == FACTION_ALLIANCE then
-					line:SetText()
-					break
-				end
-			end
-		end
 	else
 		for i = 2, lines do
 			local line = _G["GameTooltipTextLeft"..i]
@@ -392,7 +457,7 @@ local OnTooltipSetUnit = function(self)
 		end
 	end
 
-	if C.tooltip.target == true and UnitExists(unit.."target") then
+	if C.tooltip.target and UnitExists(unit.."target") then
 		local r, g, b = GetColor(unit.."target")
 		local text = ""
 
@@ -412,7 +477,7 @@ local OnTooltipSetUnit = function(self)
 		self:AddLine(text, r, g, b)
 	end
 
-	if C.tooltip.raid_icon == true then
+	if C.tooltip.raid_icon then
 		local raidIndex = GetRaidTargetIndex(unit)
 		if raidIndex then
 			SetRaidTargetIconTexture(ricon, raidIndex)
@@ -422,9 +487,11 @@ local OnTooltipSetUnit = function(self)
 		end
 	end
 
-	if C.tooltip.who_targetting == true then
+	if C.tooltip.who_targetting then
 		-- token = unit AddTargetedBy() -- BETA secret now
 	end
+
+	if C.tooltip.mount and isPlayer then T.MountSource(self, unit) end
 end
 
 TooltipDataProcessor.AddTooltipPostCall(Enum.TooltipDataType.Unit, OnTooltipSetUnit)
@@ -432,7 +499,7 @@ TooltipDataProcessor.AddTooltipPostCall(Enum.TooltipDataType.Unit, OnTooltipSetU
 ----------------------------------------------------------------------------------------
 --	Hide tooltips in combat for action bars, pet bar and stance bar
 ----------------------------------------------------------------------------------------
-if C.tooltip.hidebuttons == true then
+if C.tooltip.hidebuttons then
 	local function CombatHideActionButtonsTooltip(self)
 		if not IsShiftKeyDown() then
 			self:Hide()
@@ -479,7 +546,7 @@ end)
 ----------------------------------------------------------------------------------------
 --	Fix GameTooltipMoneyFrame font size
 ----------------------------------------------------------------------------------------
-hooksecurefunc("SetTooltipMoney", function()
+hooksecurefunc("SetTooltipMoney", function() -- BETA need to use new function GameTooltip_AddMoneyLine
 	for i = 1, 2 do
 		if _G["GameTooltipMoneyFrame"..i] then
 			_G["GameTooltipMoneyFrame"..i.."PrefixText"]:SetFontObject("GameTooltipText")

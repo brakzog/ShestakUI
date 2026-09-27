@@ -25,7 +25,7 @@ local function Shared(self, unit)
 
 	-- Register click
 	self:RegisterForClicks("AnyUp")
-	self:SetScript("OnEnter", UnitFrame_OnEnter)
+	self:SetScript("OnEnter", T.UnitFrame_OnEnter)
 	self:SetScript("OnLeave", UnitFrame_OnLeave)
 
 	local unit = (unit and unit:find("arena%dtarget")) and "arenatarget"
@@ -37,7 +37,7 @@ local function Shared(self, unit)
 		self:SetAttribute("type2", "focus")
 		self:SetAttribute("type3", "macro")
 		self:SetAttribute("macrotext3", "/clearfocus")
-		self:SetAttribute('oUF-enableArenaPrep', false)
+		self:SetAttribute("oUF-enableArenaPrep", false)
 	else
 		self:SetAttribute("*type2", "togglemenu")
 	end
@@ -45,7 +45,7 @@ local function Shared(self, unit)
 	-- Backdrop for every units
 	self:CreateBackdrop("Default")
 	self:SetFrameStrata("BACKGROUND")
-	self.backdrop:SetFrameLevel(3)
+	self.backdrop:SetFrameLevel(2)
 
 	-- Health bar
 	self.Health = CreateFrame("StatusBar", self:GetName().."_Health", self)
@@ -717,7 +717,7 @@ local function Shared(self, unit)
 		end
 	end
 
-	-- Counter bar (Darkmoon Fair) -- Midnight secret error
+	-- Counter bar (Darkmoon Fair) -- Midnight secret error (BETA)
 	-- if unit == "player" or unit == "pet" then
 		-- self.CounterBar = CreateFrame("StatusBar", self:GetName().."_CounterBar", self)
 		-- self.CounterBar:CreateBackdrop("Default")
@@ -745,13 +745,16 @@ local function Shared(self, unit)
 	-- Debuff icons
 	if unit == "pet" and C.aura.pet_debuffs or unit == "focus" and C.aura.focus_debuffs
 	or unit == "focustarget" and C.aura.fot_debuffs or unit == "targettarget" and C.aura.tot_debuffs then
-		self.Debuffs = CreateFrame("Frame", self:GetName().."_Debuffs", self)
-		self.Debuffs:SetHeight(25)
-		self.Debuffs:SetWidth(pet_width + 4)
+		self.Debuffs = self:CreateAuras({
+			growthY = "DOWN",
+			layoutLimit = pet_width + 5
+		})
 		self.Debuffs.size = T.Scale(C.aura.debuff_size)
-		self.Debuffs.spacing = T.Scale(3)
-		self.Debuffs.num = 4
-		self.Debuffs.growthY = "DOWN"
+		self.Debuffs.showCount = true
+		self.Debuffs.elementSpacing = T.Scale(3)
+		self.Debuffs.sortDirection = AuraContainerSortDirection.Reverse
+		self.Debuffs.PostCreateButton = T.PostCreateIcon
+
 		if unit == "pet" or unit == "focus" then
 			self.Debuffs:SetPoint("TOPRIGHT", self, "BOTTOMRIGHT", 2, -17)
 			self.Debuffs.initialAnchor = "TOPRIGHT"
@@ -761,13 +764,14 @@ local function Shared(self, unit)
 			self.Debuffs.initialAnchor = "TOPLEFT"
 			self.Debuffs.growthX = "RIGHT"
 		end
-		self.Debuffs.PostCreateButton = T.PostCreateIcon
-		self.Debuffs.PostUpdateButton = T.PostUpdateIcon
-		self.Debuffs.FilterAura = T.CustomFilter
 
-		if unit == "pet" then
-			self:RegisterEvent("UNIT_PET", T.UpdateAllElements)
-		end
+		self.Debuffs:AddGroup("HARMFUL", {
+			maxFrameCount = 4
+		})
+
+		-- if unit == "pet" then
+			-- self:RegisterEvent("UNIT_PET", T.UpdateAllElements)
+		-- end
 	end
 
 	if unit == "player" or unit == "target" then
@@ -786,9 +790,6 @@ local function Shared(self, unit)
 				self.Portrait:SetPoint(unpack(C.position.unitframes.target_portrait))
 			end
 
-			self.Portrait.Icon = self.Portrait:CreateTexture(nil, "ARTWORK")
-			self.Portrait.Icon:SetAllPoints()
-
 			if C.unitframe.portrait_type == "ICONS" then
 				self.Portrait.classIcons = true
 			end
@@ -797,6 +798,9 @@ local function Shared(self, unit)
 			self.Portrait.backdrop:SetPoint("TOPLEFT", -2 - T.mult, 2 + T.mult)
 			self.Portrait.backdrop:SetPoint("BOTTOMRIGHT", 2 + T.mult, -2 - T.mult)
 
+			self.Portrait.Icon = self.Portrait:CreateTexture(nil, "ARTWORK")
+			self.Portrait.Icon:SetInside(self.Portrait.backdrop)
+
 			if C.unitframe.portrait_classcolor_border then
 				if unit == "player" then
 					self.Portrait.backdrop:SetBackdropBorderColor(T.color.r, T.color.g, T.color.b)
@@ -804,7 +808,7 @@ local function Shared(self, unit)
 					self.Portrait.backdrop:RegisterEvent("PLAYER_TARGET_CHANGED")
 					self.Portrait.backdrop:SetScript("OnEvent", function()
 						local _, class = UnitClass("target")
-						local color = (CUSTOM_CLASS_COLORS or RAID_CLASS_COLORS)[class]
+						local color = canaccessvalue(class) and T.oUF_colors.class[class]
 						if color then
 							self.Portrait.backdrop:SetBackdropBorderColor(color.r, color.g, color.b)
 						else
@@ -815,10 +819,8 @@ local function Shared(self, unit)
 			end
 
 			if C.unitframe.portrait_type == "OVERLAY" then
-				local healthTex = self.Health:GetStatusBarTexture()
 				self.Portrait:ClearAllPoints()
-				self.Portrait:SetPoint("TOPLEFT", healthTex, "TOPLEFT", 0, 0)
-				self.Portrait:SetPoint("BOTTOMRIGHT", healthTex, "BOTTOMRIGHT", 0, 1)
+				self.Portrait:SetAllPoints(self.Health:GetStatusBarTexture())
 				self.Portrait:SetFrameLevel(self.Health:GetFrameLevel())
 				self.Portrait.backdrop:Hide()
 				self.Portrait:SetAlpha(0.5)
@@ -828,14 +830,19 @@ local function Shared(self, unit)
 		if unit == "player" then
 			-- Debuffs on player
 			if C.aura.player_auras then
-				self.Debuffs = CreateFrame("Frame", self:GetName().."_Debuffs", self)
-				self.Debuffs:SetHeight(165)
-				self.Debuffs:SetWidth(player_width + 4)
+				self.Debuffs = self:CreateAuras({
+					initialAnchor = "BOTTOMRIGHT",
+					growthX = "LEFT",
+					layoutLimit = player_width + 5,
+				})
+				self.Debuffs.showCount = true
+				self.Debuffs.elementSpacing = T.Scale(3)
+				self.Debuffs.tooltipAnchor = "ANCHOR_TOPRIGHT"
+				self.Debuffs.tooltipOffsetY = 3
 				self.Debuffs.size = T.Scale(C.aura.debuff_size)
-				self.Debuffs.spacing = T.Scale(3)
-				self.Debuffs.initialAnchor = "BOTTOMRIGHT"
-				self.Debuffs.growthX = "LEFT"
-				self.Debuffs.growthY = "UP"
+				self.Debuffs.sortDirection = AuraContainerSortDirection.Reverse
+				self.Debuffs.PostCreateButton = T.PostCreateIcon
+
 				if (T.class == "DEATHKNIGHT" and C.unitframe_class_bar.rune)
 				or ((T.class == "DRUID" or T.class == "ROGUE") and C.unitframe_class_bar.combo and C.unitframe_class_bar.combo_old ~= true)
 				or (T.class == "SHAMAN" and C.unitframe_class_bar.totem)
@@ -845,8 +852,10 @@ local function Shared(self, unit)
 					self.Debuffs:SetPoint("BOTTOMRIGHT", self, "TOPRIGHT", 2, 5)
 				end
 
-				self.Debuffs.PostCreateButton = T.PostCreateIcon
-				self.Debuffs.PostUpdateButton = T.PostUpdateIcon
+				self.Debuffs:AddGroup("HARMFUL", {
+					maxFrameCount = 10,
+				})
+
 			else
 				BuffFrame:Hide()
 				DebuffFrame:Hide()
@@ -856,22 +865,39 @@ local function Shared(self, unit)
 		if unit == "target" then
 			-- Auras on target
 			if C.aura.target_auras then
-				self.Auras = CreateFrame("Frame", self:GetName().."_Auras", self)
+				self.Auras = self:CreateAuras({
+					initialAnchor = "BOTTOMLEFT",
+					growthX = "RIGHT",
+					growthY = "UP",
+					layoutLimit = player_width + 5,
+				})
 				self.Auras:SetPoint("BOTTOMLEFT", self, "TOPLEFT", -2, 5)
-				self.Auras.initialAnchor = "BOTTOMLEFT"
-				self.Auras.growthX = "RIGHT"
-				self.Auras.growthY = "UP"
-				self.Auras.numDebuffs = 16
-				self.Auras.numBuffs = 32
-				self.Auras:SetHeight(165)
-				self.Auras:SetWidth(player_width - 6)
-				self.Auras.spacing = T.Scale(3)
+				self.Auras.showCount = true
+				self.Auras.maxFrameCount = 16
+				self.Auras.elementSpacing = T.Scale(3)
+				self.Auras.lineSpacing = T.Scale(3)
 				self.Auras.size = T.Scale(C.aura.debuff_size)
-				self.Auras.gap = true
+				self.Auras.groupLineSpacing = T.Scale(3)
+				self.Auras.tooltipAnchor = "ANCHOR_TOPLEFT"
+				self.Auras.tooltipOffsetY = 3
+				self.Auras.sortDirection = AuraContainerSortDirection.Reverse
 				self.Auras.PostCreateButton = T.PostCreateIcon
-				self.Auras.PostUpdateButton = T.PostUpdateIcon
-				self.Auras.PostUpdateGapButton = T.PostUpdateGapButton
-				self.Auras.FilterAura = T.CustomFilter
+
+				self.Auras:AddGroup("HELPFUL", {
+					showStealable = true,
+				})
+
+				self.Auras:AddGroup("HARMFUL|PLAYER", {
+					layout = {
+						groupSpacing = T.Scale(C.aura.debuff_size + 3)
+					},
+				})
+
+				if not C.aura.player_aura_only then
+					self.Auras:AddGroup("HARMFUL|!PLAYER", {
+						notPlayerDebuff = true,
+					})
+				end
 			end
 
 			-- Rogue/Druid Combo bar on target
@@ -923,15 +949,14 @@ local function Shared(self, unit)
 			self.Status:SetPoint("CENTER", self.Health, "CENTER", 0, 0)
 			self.Status:SetTextColor(0.69, 0.31, 0.31)
 			self.Status:Hide()
-			self.Status.Override = T.dummy
 
-			self:SetScript("OnEnter", function(self) if self.LowMana then self.LowMana.Text:Hide() end T.UpdatePvPStatus(self) self.Status:Show() UnitFrame_OnEnter(self) end)
+			self:SetScript("OnEnter", function(self) if self.LowMana then self.LowMana.Text:Hide() end T.UpdatePvPStatus(self) self.Status:Show() T.UnitFrame_OnEnter(self) end)
 			self:SetScript("OnLeave", function(self) if self.LowMana then self.LowMana.Text:Show() end self.Status:Hide() UnitFrame_OnLeave(self) end)
 		end
 	end
 
 	-- Castbar
-	if C.unitframe.unit_castbar and not unit:match('%wtarget$') then
+	if C.unitframe.unit_castbar and not unit:match("%wtarget$") then
 		self.Castbar = CreateFrame("StatusBar", self:GetName().."_Castbar", self)
 		self.Castbar:SetStatusBarTexture(C.media.texture, "ARTWORK")
 
@@ -942,7 +967,7 @@ local function Shared(self, unit)
 		self.Castbar.Overlay = CreateFrame("Frame", nil, self.Castbar)
 		self.Castbar.Overlay:SetTemplate("Default")
 		self.Castbar.Overlay:SetFrameStrata("BACKGROUND")
-		self.Castbar.Overlay:SetFrameLevel(3)
+		self.Castbar.Overlay:SetFrameLevel(2)
 		self.Castbar.Overlay:SetPoint("TOPLEFT", -2, 2)
 		self.Castbar.Overlay:SetPoint("BOTTOMRIGHT", 2, -2)
 
@@ -995,8 +1020,11 @@ local function Shared(self, unit)
 			self.Castbar.Time:SetPoint("RIGHT", self.Castbar, "RIGHT", 0, 0)
 			self.Castbar.Time:SetTextColor(1, 1, 1)
 			self.Castbar.Time:SetJustifyH("RIGHT")
-			self.Castbar.CustomTimeText = T.CustomCastTimeText
-			self.Castbar.CustomDelayText = T.CustomCastDelayText
+			self.Castbar.Time.binding = T.CustomCastbarTimeBinding()
+
+			self.Castbar.Delay = T.SetFontString(self.Castbar, C.font.unit_frames_font, C.font.unit_frames_font_size, C.font.unit_frames_font_style)
+			self.Castbar.Delay:SetPoint("RIGHT", self.Castbar.Time, "LEFT", -2, 0)
+			self.Castbar.Delay:SetTextColor(0.7, 0.3, 0.3)
 
 			self.Castbar.Text = T.SetFontString(self.Castbar, C.font.unit_frames_font, C.font.unit_frames_font_size, C.font.unit_frames_font_style)
 			self.Castbar.Text:SetPoint("LEFT", self.Castbar, "LEFT", 2, 0)
@@ -1083,8 +1111,11 @@ local function Shared(self, unit)
 				self.Castbar.Time:SetPoint("RIGHT", self.Castbar, "RIGHT", 0, 0)
 				self.Castbar.Time:SetTextColor(1, 1, 1)
 				self.Castbar.Time:SetJustifyH("RIGHT")
-				self.Castbar.CustomTimeText = T.CustomCastTimeText
-				self.Castbar.CustomDelayText = T.CustomCastDelayText
+				self.Castbar.Time.binding = T.CustomCastbarTimeBinding()
+
+				self.Castbar.Delay = T.SetFontString(self.Castbar, C.font.unit_frames_font, C.font.unit_frames_font_size, C.font.unit_frames_font_style)
+				self.Castbar.Delay:SetPoint("RIGHT", self.Castbar.Time, "LEFT", -2, 0)
+				self.Castbar.Delay:SetTextColor(0.7, 0.3, 0.3)
 			end
 		end
 	end
@@ -1137,42 +1168,35 @@ local function Shared(self, unit)
 		self.FactionIcon:SetPoint("TOP", 0, 0)
 
 		-- Crowd control icon
-		self.Debuffs = CreateFrame("Frame", self:GetName().."_Debuffs", self)
-		self.Debuffs:SetSize(31 + T.extraHeight, 31 + T.extraHeight)
+		local anchor = C.unitframe.arena_on_right and "RIGHT" or "LEFT"
+		local growth = C.unitframe.arena_on_right and "LEFT" or "RIGHT"
+		self.Debuffs = self:CreateAuras({
+			initialAnchor = anchor,
+			growthY = "DOWN",
+			growthX = growth
+		})
 		self.Debuffs:SetFrameStrata("HIGH")
+		self.Debuffs.showCount = true
 		self.Debuffs.size = T.Scale(31 + T.extraHeight)
-		self.Debuffs.num = 1
-		if C.unitframe.boss_on_right then
+		self.Debuffs.elementSpacing = T.Scale(3)
+		self.Debuffs.tooltipAnchor = "ANCHOR_TOPRIGHT"
+		self.Debuffs.tooltipOffsetY = 3
+		self.Debuffs.sortDirection = AuraContainerSortDirection.Reverse
+		self.Debuffs.PostCreateButton = T.PostCreateIcon
+
+		if C.unitframe.arena_on_right then
 			self.Debuffs:SetPoint("RIGHT", self, "LEFT", -5, 0)
-			self.Debuffs.initialAnchor = "RIGHT"
-			self.Debuffs.growthX = "LEFT"
 		else
 			self.Debuffs:SetPoint("LEFT", self, "RIGHT", 5, 0)
-			self.Debuffs.initialAnchor = "LEFT"
-			self.Debuffs.growthX = "RIGHT"
 		end
 
-		self.Debuffs.PostCreateButton = T.PostCreateIcon
-		self.Debuffs.PostUpdateButton = T.PostUpdateRaidButton
+		self.Debuffs:AddGroup("HARMFUL|CROWD_CONTROL", {
+			maxFrameCount = 1
+		})
 
-		self.Debuffs.filter = "HARMFUL|CROWD_CONTROL"
-
-		--BETA self.AuraTracker = CreateFrame("Frame", self:GetName().."_AuraTracker", self)
-		-- self.AuraTracker:SetWidth(self.Trinket:GetWidth())
-		-- self.AuraTracker:SetHeight(self.Trinket:GetHeight())
-		-- self.AuraTracker:SetPoint("CENTER", self.Trinket, "CENTER")
-		-- self.AuraTracker:SetFrameStrata("HIGH")
-
-		-- self.AuraTracker.icon = self.AuraTracker:CreateTexture(nil, "ARTWORK")
-		-- self.AuraTracker.icon:SetWidth(self.Trinket:GetWidth())
-		-- self.AuraTracker.icon:SetHeight(self.Trinket:GetHeight())
-		-- self.AuraTracker.icon:SetPoint("TOPLEFT", self.Trinket, 2, -2)
-		-- self.AuraTracker.icon:SetPoint("BOTTOMRIGHT", self.Trinket, -2, 2)
-		-- self.AuraTracker.icon:SetTexCoord(0.1, 0.9, 0.1, 0.9)
-
-		-- self.AuraTracker.text = T.SetFontString(self.AuraTracker, C.font.unit_frames_font, C.font.unit_frames_font_size * 2, C.font.unit_frames_font_style)
-		-- self.AuraTracker.text:SetPoint("CENTER", self.AuraTracker, 0, 0)
-		-- self.AuraTracker:SetScript("OnUpdate", T.AuraTrackerTime)
+		-- self.Debuffs:AddGroup("HELPFUL|EXTERNAL_DEFENSIVE", {
+			-- maxFrameCount = 1,
+		-- })
 
 		if C.unitframe.plugins_enemy_spec then
 			self.EnemySpec = T.SetFontString(self.Power, C.font.unit_frames_font, C.font.unit_frames_font_size, C.font.unit_frames_font_style)
@@ -1216,30 +1240,42 @@ local function Shared(self, unit)
 
 		-- Auras on boss
 		if C.aura.boss_auras then
-			self.Auras = CreateFrame("Frame", self:GetName().."_Auras", self)
+			local anchor = C.unitframe.boss_on_right and "RIGHT" or "LEFT"
+			local growth = C.unitframe.boss_on_right and "LEFT" or "RIGHT"
+			self.Auras = self:CreateAuras({
+				initialAnchor = anchor,
+				growthY = "DOWN",
+				growthX = growth,
+				layoutLimit = 500,
+			})
+			self.Auras.showCount = true
+			self.Auras.elementSpacing = T.Scale(3)
+			self.Auras.tooltipAnchor = "ANCHOR_TOPRIGHT"
+			self.Auras.tooltipOffsetY = 3
+			self.Auras.sortDirection = AuraContainerSortDirection.Reverse
+			self.Auras.PostCreateButton = T.PostCreateIcon
+			self.Auras.size = T.Scale(31 + T.extraHeight)
+
 			if C.unitframe.boss_on_right then
 				self.Auras:SetPoint("RIGHT", self, "LEFT", -5, 0)
-				self.Auras.initialAnchor = "RIGHT"
-				self.Auras.growthX = "LEFT"
 			else
 				self.Auras:SetPoint("LEFT", self, "RIGHT", 5, 0)
-				self.Auras.initialAnchor = "LEFT"
-				self.Auras.growthX = "RIGHT"
 			end
-			self.Auras.numDebuffs = C.aura.boss_debuffs
-			self.Auras.numBuffs = C.aura.boss_buffs
-			self.Auras:SetHeight(31 + T.extraHeight)
-			self.Auras:SetWidth((34 + T.extraHeight) * (C.aura.boss_debuffs + C.aura.boss_buffs + 1))
-			self.Auras.spacing = T.Scale(3)
-			self.Auras.size = T.Scale(31 + T.extraHeight)
-			self.Auras.gap = true
-			self.Auras.PostCreateButton = T.PostCreateIcon
-			self.Auras.PostUpdateButton = T.PostUpdateIcon
-			self.Auras.PostUpdateGapButton = T.PostUpdateGapButton
-			self.Auras.FilterAura = T.CustomFilterBoss
+
+			if C.aura.boss_buffs > 0 then
+				self.Auras:AddGroup("HELPFUL", {
+					maxFrameCount = C.aura.boss_buffs,
+				})
+			end
+
+			if C.aura.boss_debuffs > 0 then
+				self.Auras:AddGroup("HARMFUL|PLAYER", {
+					maxFrameCount = C.aura.boss_debuffs,
+				})
+			end
 		end
 
-		self:HookScript("OnShow", T.UpdateAllElements)
+		-- self:HookScript("OnShow", T.UpdateAllElements)
 	end
 
 	-- Aggro border
@@ -1257,12 +1293,9 @@ local function Shared(self, unit)
 	end
 
 	-- Dispel highlight
-	if C.raidframe.plugins_debuffhighlight and not unit:match('%wtarget$') then
-		self.DispelColor = self.Health:CreateTexture(nil, "OVERLAY")
-		self.DispelColor:SetAllPoints(self.Health)
-		self.DispelColor:SetTexture(C.media.highlight)
-		self.DispelColor:SetVertexColor(0, 0, 0, 0)
-		self.DispelColor:SetBlendMode("ADD")
+	-- if C.raidframe.plugins_debuffhighlight and not unit:match("%wtarget$") then
+	if C.raidframe.plugins_debuffhighlight and (unit == "player" or unit == "pet") then -- Can't filter enemy now
+		T.DispelColor(self)
 	end
 
 	-- Incoming heals and heal/damage absorbs
@@ -1293,6 +1326,11 @@ local function Shared(self, unit)
 			}
 		end
 		self.NormalAlpha = 1
+	end
+
+	-- Filger auras tracker
+	if C.filger.enable then
+		T.CreateFilgerAuras(self, unit)
 	end
 
 	-- Apply expert code
@@ -1438,7 +1476,7 @@ if C.unitframe.show_arena then
 						end
 
 						if class and spec then
-							local color = (CUSTOM_CLASS_COLORS or RAID_CLASS_COLORS)[class]
+							local color = T.oUF_colors.class[class]
 							if C.unitframe.own_color then
 								f.Health:SetStatusBarColor(unpack(C.unitframe.uf_color))
 								f.Spec:SetText(spec)
@@ -1564,7 +1602,7 @@ if C.unitframe.lines then
 	HorizontalTargetLine:RegisterEvent("PLAYER_TARGET_CHANGED")
 	HorizontalTargetLine:SetScript("OnEvent", function(self)
 		local _, class = UnitClass("target")
-		local color = (CUSTOM_CLASS_COLORS or RAID_CLASS_COLORS)[class]
+		local color = canaccessvalue(class) and T.oUF_colors.class[class]
 		if color then
 			self:SetBackdropBorderColor(color.r, color.g, color.b)
 		else
@@ -1577,7 +1615,7 @@ if C.unitframe.lines then
 	VerticalTargetLine:RegisterEvent("PLAYER_TARGET_CHANGED")
 	VerticalTargetLine:SetScript("OnEvent", function(self)
 		local _, class = UnitClass("target")
-		local color = (CUSTOM_CLASS_COLORS or RAID_CLASS_COLORS)[class]
+		local color = canaccessvalue(class) and T.oUF_colors.class[class]
 		if color then
 			self:SetBackdropBorderColor(color.r, color.g, color.b)
 		else

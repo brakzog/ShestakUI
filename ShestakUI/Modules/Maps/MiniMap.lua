@@ -154,6 +154,11 @@ MinimapCluster.ZoneTextButton:Hide()
 
 AddonCompartmentFrame:Kill()
 
+-- Hide coords
+if T.newPatch then
+C_CVar.SetCVar("minimapShowPlayerCoords", 0)
+end
+
 -- Garrison icon
 if C.minimap.garrison_icon == true then
 	ExpansionLandingPageMinimapButton:SetScale(0.6)
@@ -340,23 +345,30 @@ if not IsTrialAccount() and C_StorePublic.IsEnabled() then
 end
 
 if T.level == GetMaxPlayerLevel() then
+	local name = C_Spell.GetSpellName(1302265)	-- Omnium Folio
+	tinsert(micromenu, {text = name, notCheckable = 1, func = function()
+		if ExpansionLandingPageMinimapButton then
+			ExpansionLandingPageMinimapButton:Click()
+		end
+	end})
+
 	tinsert(micromenu, {text = RATED_PVP_WEEKLY_VAULT, notCheckable = 1, func = function()
 		if not WeeklyRewardsFrame then
 			WeeklyRewards_LoadUI()
 		end
 		ToggleFrame(WeeklyRewardsFrame)
 	end})
+else
+	local frame = CreateFrame("Frame")
+	frame:RegisterEvent("GARRISON_SHOW_LANDING_PAGE")
+	frame:RegisterEvent("PLAYER_ENTERING_WORLD")
+	frame:SetScript("OnEvent", function()
+		if ExpansionLandingPageMinimapButton.title then
+			tinsert(micromenu, {text = ExpansionLandingPageMinimapButton.title, notCheckable = 1, func = function() ExpansionLandingPageMinimapButton:ToggleLandingPage() end})
+			frame:UnregisterAllEvents()
+		end
+	end)
 end
-
-local frame = CreateFrame("Frame")
-frame:RegisterEvent("GARRISON_SHOW_LANDING_PAGE")
-frame:RegisterEvent("PLAYER_ENTERING_WORLD")
-frame:SetScript("OnEvent", function()
-	if ExpansionLandingPageMinimapButton.title then
-		tinsert(micromenu, {text = ExpansionLandingPageMinimapButton.title, notCheckable = 1, func = function() ExpansionLandingPageMinimapButton:ToggleLandingPage() end})
-		frame:UnregisterAllEvents()
-	end
-end)
 
 local MinimapArea = CreateFrame("Frame", nil, Minimap)
 MinimapArea:SetPassThroughButtons("LeftButton")

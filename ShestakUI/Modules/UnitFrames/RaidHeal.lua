@@ -36,7 +36,7 @@ local function Shared(self, unit)
 
 	-- Register click
 	self:RegisterForClicks("AnyUp")
-	self:SetScript("OnEnter", UnitFrame_OnEnter)
+	self:SetScript("OnEnter", T.UnitFrame_OnEnter)
 	self:SetScript("OnLeave", UnitFrame_OnLeave)
 
 	-- Backdrop for every units
@@ -234,11 +234,7 @@ local function Shared(self, unit)
 
 	-- Dispel highlight
 	if C.raidframe.plugins_debuffhighlight and not (suffix == "target" or suffix == "targettarget") then
-		self.DispelColor = self.Health:CreateTexture(nil, "OVERLAY")
-		self.DispelColor:SetAllPoints(self.Health)
-		self.DispelColor:SetTexture(C.media.highlight)
-		self.DispelColor:SetVertexColor(0, 0, 0, 0)
-		self.DispelColor:SetBlendMode("ADD")
+		T.DispelColor(self)
 	end
 
 	-- Incoming heals and heal/damage absorbs
@@ -263,108 +259,48 @@ local function Shared(self, unit)
 	if C.raidframe.plugins_buffs == true and not (suffix == "pet" or suffix == "target" or suffix == "targettarget") then
 		T.CreateAuraWatch(self, unit)
 
-		-- self.Buffs = CreateFrame("Frame", self:GetName().."_Buffs", self)
-		-- self.Buffs:SetSize(self:GetWidth(), 8 * C.raidframe.icon_multiplier)
-		-- self.Buffs.size = 8 * C.raidframe.icon_multiplier
-		-- self.Buffs.spacing = 3
-		-- self.Buffs.num = 5
-		-- self.Buffs:SetPoint("TOPRIGHT", self, 0, 0)
-		-- self.Buffs.initialAnchor = "TOPRIGHT"
-		-- self.Buffs.growthX = "LEFT"
-
-		-- self.Buffs.PostCreateButton = T.CreateRaidBuffIcon
-
-		-- self.Buffs.disableMouse = true
-		-- self.Buffs.filter = "HELPFUL|PLAYER|RAID_IN_COMBAT"
-
 		-- Defensive buffs
-		self.Auras = CreateFrame("Frame", self:GetName().."_DefensiveBuffs", self)
-		self.Auras:SetSize(self:GetWidth(), 8 * C.raidframe.icon_multiplier)
-		self.Auras.size = 8 * C.raidframe.icon_multiplier
-		self.Auras.spacing = 3
-		self.Auras.numBuffs = 1
-		self.Auras:SetPoint("LEFT", self, 0, 0)
-
+		self.Auras = self:CreateAuras({
+			initialAnchor = "TOPRIGHT",
+			growthX = "LEFT"
+		})
+		self.Auras:SetPoint("LEFT", self, 0, 2)
+		self.Auras.showCount = true
+		self.Auras.elementSpacing = T.Scale(3)
+		self.Auras.size = 7 * C.raidframe.icon_multiplier
+		self.Auras.disableMouse = true
+		self.Auras.sortDirection = AuraContainerSortDirection.Reverse
 		self.Auras.PostCreateButton = T.CreateRaidBuffIcon
 
-		self.Auras.disableMouse = true
-		self.Auras.filter = "HELPFUL|EXTERNAL_DEFENSIVE"
-		-- self.Auras.filter = "HELPFUL|BIG_DEFENSIVE"
+		self.Auras:AddGroup("HELPFUL|EXTERNAL_DEFENSIVE", {
+			maxFrameCount = 1
+		})
 	end
 
 	-- Raid Debuffs
 	if C.raidframe.plugins_debuffs == true and not (suffix == "pet" or suffix == "target" or suffix == "targettarget") then
-		self.Debuffs = CreateFrame("Frame", self:GetName().."_Debuffs", self)
-		self.Debuffs:SetSize(18, 18)
-		self.Debuffs.size = T.Scale(18)
-		self.Debuffs.num = 1
+		self.Debuffs = self:CreateAuras()
 		self.Debuffs:SetPoint("CENTER", self, 0, 1)
-
-		self.Debuffs.PostCreateButton = T.PostCreateIcon
-		self.Debuffs.PostUpdateButton = T.PostUpdateRaidButton
-
+		self.Debuffs.size = 18 * C.raidframe.icon_multiplier
+		self.Debuffs.maxFrameCount = 1
 		self.Debuffs.disableMouse = true
-		self.Debuffs.filter = "HARMFUL|RAID"
+		self.Debuffs.showCount = true
+		self.Debuffs.isRaidDebuff = true
+		self.Debuffs.sortDirection = AuraContainerSortDirection.Reverse
+		self.Debuffs.PostCreateButton = T.PostCreateIcon
 
-		-- Blizzard private auras
-		if C.raidframe.plugins_private_auras then
-			self.PrivateAuras = CreateFrame("Frame", self:GetName().."_PrivateAuras", self)
-			self.PrivateAuras:SetPoint("CENTER", self, 0, 1)
-			self.PrivateAuras:SetSize(18, 18)
-			self.PrivateAuras.size = T.Scale(18)
-
-			self.PrivateAuras.borderScale = 1
-			self.PrivateAuras.disableCooldownText = true
-			self.PrivateAuras.disableCooldown = not C.aura.show_spiral
-
-			self.PrivateAuras.SetPosition = T.PrivateAurasSetPosition -- show always one aura in center
-			self.PrivateAuras.PostUpdate = T.PrivateAurasPostUpdate -- hide tooltip
-
-			self.Debuffs:SetFrameLevel(7)
-		end
-
-		-- -- Raid debuffs
-		-- self.RaidDebuffs = CreateFrame("Frame", nil, self)
-		-- self.RaidDebuffs:SetSize(19, 19)
-		-- self.RaidDebuffs:SetPoint("CENTER", self, 0, 1)
-		-- self.RaidDebuffs:SetFrameStrata("MEDIUM")
-		-- self.RaidDebuffs:SetFrameLevel(10)
-		-- self.RaidDebuffs:SetTemplate("Default")
-
-		-- self.RaidDebuffs.icon = self.RaidDebuffs:CreateTexture(nil, "BORDER")
-		-- self.RaidDebuffs.icon:SetTexCoord(0.1, 0.9, 0.1, 0.9)
-		-- self.RaidDebuffs.icon:SetPoint("TOPLEFT", 2, -2)
-		-- self.RaidDebuffs.icon:SetPoint("BOTTOMRIGHT", -2, 2)
-
-		-- if C.raidframe.plugins_debuffs_timer == true then
-			-- self.RaidDebuffs.time = T.SetFontString(self.RaidDebuffs, C.font.unit_frames_font, C.font.unit_frames_font_size, C.font.unit_frames_font_style)
-			-- self.RaidDebuffs.time:SetPoint("CENTER", 1, 1)
-			-- self.RaidDebuffs.time:SetTextColor(1, 1, 1)
+		-- TODO: add in future
+		-- if C.raidframe.plugins_pvp_debuffs then
+			-- self.Debuffs:AddGroup("HARMFUL|CROWD_CONTROL")
 		-- end
 
-		-- self.RaidDebuffs.count = T.SetFontString(self.RaidDebuffs, C.font.unit_frames_font, C.font.unit_frames_font_size, C.font.unit_frames_font_style)
-		-- self.RaidDebuffs.count:SetPoint("BOTTOMRIGHT", self.RaidDebuffs, "BOTTOMRIGHT", 3, -1)
-		-- self.RaidDebuffs.count:SetTextColor(1, 1, 1)
-
-		-- if C.aura.show_spiral == true then
-			-- self.RaidDebuffs.cd = CreateFrame("Cooldown", nil, self.RaidDebuffs, "CooldownFrameTemplate")
-			-- self.RaidDebuffs.cd:SetPoint("TOPLEFT", 2, -2)
-			-- self.RaidDebuffs.cd:SetPoint("BOTTOMRIGHT", -2, 2)
-			-- self.RaidDebuffs.cd:SetReverse(true)
-			-- self.RaidDebuffs.cd:SetDrawEdge(false)
-			-- self.RaidDebuffs.cd.noCooldownCount = true
-			-- self.RaidDebuffs.cd:SetHideCountdownNumbers(true)
-			-- self.RaidDebuffs.parent = CreateFrame("Frame", nil, self.RaidDebuffs)
-			-- self.RaidDebuffs.parent:SetFrameLevel(self.RaidDebuffs.cd:GetFrameLevel() + 1)
-			-- if C.raidframe.plugins_debuffs_timer == true then
-				-- self.RaidDebuffs.time:SetParent(self.RaidDebuffs.parent)
-			-- end
-			-- self.RaidDebuffs.count:SetParent(self.RaidDebuffs.parent)
-		-- end
-
-		-- self.RaidDebuffs.ShowDispellableDebuff = C.raidframe.plugins_debuffhighlight_icon
-		-- self.RaidDebuffs.FilterDispellableDebuff = true
-		-- self.RaidDebuffs.MatchBySpellName = true
+		self.Debuffs:AddGroup("HARMFUL|!PLAYER", {
+		  candidateFilters = {
+			isFromPlayerOrPlayerPet = false,
+			-- maxDuration = 60,
+			excludeSpellIDs = T.RaidDebuffsIgnore
+		  }
+		})
 	end
 
 	-- Apply expert code

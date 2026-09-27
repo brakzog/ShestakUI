@@ -10,7 +10,8 @@ local function LoadSkin()
 
 	local tabs = {
 		frame.SpellsTab,
-		frame.AurasTab
+		frame.AurasTab,
+		frame.GroupBuffsTab
 	}
 	for _, tab in pairs(tabs) do
 		T.SkinFrameTab(tab)
@@ -42,6 +43,8 @@ local function LoadSkin()
 			end
 		end
 	end
+
+	T.SkinScrollBar(frame.GroupBuffFilter.Scroll.ScrollBar)
 
 	local function SkinHeaders(header)
 		if header and not header.IsSkinned then
@@ -102,12 +105,7 @@ local function LoadSkin()
 	end
 
 	local hookedItemPools = {}
-
-	local function RefreshLayout()
-		local CooldownViewer = _G.CooldownViewerSettings
-		if not CooldownViewer or not CooldownViewer.CooldownScroll then return end
-
-		local content = CooldownViewer.CooldownScroll.Content
+	local function RefreshContent(content)
 		if not content then return end
 
 		for _, child in next, {content:GetChildren()} do
@@ -124,6 +122,22 @@ local function LoadSkin()
 
 				hooksecurefunc(itemPool, "Acquire", HandleSettingItemPool)
 			end
+		end
+	end
+
+	local function RefreshLayout()
+		local CooldownViewer = _G.CooldownViewerSettings
+		if not CooldownViewer or not CooldownViewer.CooldownScroll then return end
+
+		local content = CooldownViewer.CooldownScroll.Content
+
+		if content then
+			RefreshContent(content)
+		end
+
+		local groupBuffFilter = CooldownViewer.GroupBuffFilter
+		if groupBuffFilter and groupBuffFilter.Scroll then
+			RefreshContent(groupBuffFilter.Scroll.Content)
 		end
 	end
 
@@ -163,26 +177,25 @@ local function LoadSkin()
 
 		if container.DebuffBorder then
 			container.DebuffBorder:SetAlpha(0)
-			-- container.backdrop:SetBackdropBorderColor(1, 0, 0) -- BETA need?
 		end
 
-		for _, region in next, {container:GetRegions()} do
-			if region:IsObjectType("Texture") then
-				local texture = region:GetTexture()
-				local atlas = region:GetAtlas()
+		local _, mask, overlay = container:GetRegions()
+		mask:Hide()
+		overlay:Hide()
 
-				if texture == 6707800 then
-					region:SetTexture(C.media.blank)
-				elseif atlas == "UI-HUD-CoolDownManager-IconOverlay" then -- 6704514
-					region:SetAlpha(0)
-				end
-			end
+		local outOfRange = container.OutOfRange
+		if outOfRange then
+			outOfRange:SetColorTexture(0.8, 0.1, 0.1, 0.3)
 		end
 	end
 
 	local function SkinBar(frame, bar)
 		UpdateTextBar(bar)
 		bar:SetStatusBarTexture(C.media.texture)
+
+		if frame.DebuffBorder then
+			frame.DebuffBorder:SetAlpha(0)
+		end
 
 		if frame.Icon then
 			frame.Icon.Icon:ClearAllPoints()

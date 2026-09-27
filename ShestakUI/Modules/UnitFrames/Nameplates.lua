@@ -64,7 +64,7 @@ function frame:PLAYER_LOGIN()
 
 	local function changeFont(self, size)
 		local mult = size or 1
-		self:SetFont(C.font.nameplates_font, C.font.nameplates_font_size * mult * 1, C.font.nameplates_font_style)
+		self:SetFont(C.font.nameplates_font, C.font.nameplates_font_size * mult, C.font.nameplates_font_style)
 		self:SetShadowOffset(C.font.nameplates_font_shadow and 1 or 0, C.font.nameplates_font_shadow and -1 or 0)
 	end
 	changeFont(SystemFont_NamePlateFixed)
@@ -111,10 +111,13 @@ if C.nameplate.healer_icon then
 			wipe(healList)
 			local playerFaction = numFactions[UnitFactionGroup("player")]
 			for i = 1, GetNumBattlefieldScores() do
-				local name, _, _, _, _, faction, _, _, _, _, _, _, _, _, _, talentSpec = GetBattlefieldScore(i)
-				if T.NotSecretValue(name) and name and healerSpecs[talentSpec] and faction == playerFaction then
-					name = name:match("(.+)%-.+") or name
-					healList[name] = talentSpec
+				local data = C_PvP.GetScoreInfo(i)
+				if data then
+					local name, faction, talentSpec = data.name, data.faction, data.talentSpec
+					if T.NotSecretValue(name) and name and healerSpecs[talentSpec] and faction == playerFaction then
+						name = name:match("(.+)%-.+") or name
+						healList[name] = talentSpec
+					end
 				end
 			end
 		end
@@ -184,35 +187,35 @@ local function CreateBorderFrame(frame, point)
 
 	frame.backdrop = frame:CreateTexture(nil, "BORDER")
 	frame.backdrop:SetDrawLayer("BORDER", -8)
-	frame.backdrop:SetPoint("TOPLEFT", point, "TOPLEFT", -1 * 3, 1 * 3)
-	frame.backdrop:SetPoint("BOTTOMRIGHT", point, "BOTTOMRIGHT", 1 * 3, -1 * 3)
+	frame.backdrop:SetPoint("TOPLEFT", point, "TOPLEFT", -3, 3)
+	frame.backdrop:SetPoint("BOTTOMRIGHT", point, "BOTTOMRIGHT", 3, -3)
 	local r, g, b, a = unpack(C.media.backdrop_color)
 	frame.backdrop:SetColorTexture(r, g, b + 0.01, a)
 
 	frame.bordertop = frame:CreateTexture(nil, "BORDER")
-	frame.bordertop:SetPoint("TOPLEFT", point, "TOPLEFT", -1 * 2, 1 * 2)
-	frame.bordertop:SetPoint("TOPRIGHT", point, "TOPRIGHT", 1 * 2, 1 * 2)
+	frame.bordertop:SetPoint("TOPLEFT", point, "TOPLEFT", -2, 2)
+	frame.bordertop:SetPoint("TOPRIGHT", point, "TOPRIGHT", 2, 2)
 	frame.bordertop:SetHeight(1)
 	frame.bordertop:SetColorTexture(unpack(C.media.border_color))
 	frame.bordertop:SetDrawLayer("BORDER", -7)
 
 	frame.borderbottom = frame:CreateTexture(nil, "BORDER")
-	frame.borderbottom:SetPoint("BOTTOMLEFT", point, "BOTTOMLEFT", -1 * 2, -1 * 2)
-	frame.borderbottom:SetPoint("BOTTOMRIGHT", point, "BOTTOMRIGHT", 1 * 2, -1 * 2)
+	frame.borderbottom:SetPoint("BOTTOMLEFT", point, "BOTTOMLEFT", -2, -2)
+	frame.borderbottom:SetPoint("BOTTOMRIGHT", point, "BOTTOMRIGHT", 2, -2)
 	frame.borderbottom:SetHeight(1)
 	frame.borderbottom:SetColorTexture(unpack(C.media.border_color))
 	frame.borderbottom:SetDrawLayer("BORDER", -7)
 
 	frame.borderleft = frame:CreateTexture(nil, "BORDER")
-	frame.borderleft:SetPoint("TOPLEFT", point, "TOPLEFT", -1 * 2, 1 * 2)
-	frame.borderleft:SetPoint("BOTTOMLEFT", point, "BOTTOMLEFT", 1 * 2, -1 * 2)
+	frame.borderleft:SetPoint("TOPLEFT", point, "TOPLEFT", -2, 2)
+	frame.borderleft:SetPoint("BOTTOMLEFT", point, "BOTTOMLEFT", 2, -2)
 	frame.borderleft:SetWidth(1)
 	frame.borderleft:SetColorTexture(unpack(C.media.border_color))
 	frame.borderleft:SetDrawLayer("BORDER", -7)
 
 	frame.borderright = frame:CreateTexture(nil, "BORDER")
-	frame.borderright:SetPoint("TOPRIGHT", point, "TOPRIGHT", 1 * 2, 1 * 2)
-	frame.borderright:SetPoint("BOTTOMRIGHT", point, "BOTTOMRIGHT", -1 * 2, -1 * 2)
+	frame.borderright:SetPoint("TOPRIGHT", point, "TOPRIGHT", 2, 2)
+	frame.borderright:SetPoint("BOTTOMRIGHT", point, "BOTTOMRIGHT", -2, -2)
 	frame.borderright:SetWidth(1)
 	frame.borderright:SetColorTexture(unpack(C.media.border_color))
 	frame.borderright:SetDrawLayer("BORDER", -7)
@@ -226,47 +229,29 @@ local function SetColorBorder(frame, r, g, b)
 end
 
 -- Auras functions
-local AurasCustomFilter = function(_, unit, data)
-	local allow = false
-
-	if not UnitIsFriend("player", unit) then
-		if data.isHarmfulAura then
-			if C.nameplate.track_debuffs and data.isPlayerAura then
-				local filter = not C_UnitAuras.IsAuraFilteredOutByInstanceID(unit, data.auraInstanceID, "HARMFUL|PLAYER|")
-				if filter then
-					allow = true
-				end
-			end
-		else
-			if C.nameplate.track_buffs then
-				local filter = not C_UnitAuras.IsAuraFilteredOutByInstanceID(unit, data.auraInstanceID, "HELPFUL|EXTERNAL_DEFENSIVE")
-				if filter then
-					allow = true
-				end
-
-				local filter = not C_UnitAuras.IsAuraFilteredOutByInstanceID(unit, data.auraInstanceID, "HELPFUL|BIG_DEFENSIVE")
-				if filter then
-					allow = true
-				end
-
-				local filter = not C_UnitAuras.IsAuraFilteredOutByInstanceID(unit, data.auraInstanceID, "HELPFUL|RAID_PLAYER_DISPELLABLE")
-				if filter then
-					allow = true
-				end
-			end
-		end
-	end
-
-	return allow
-end
 
 local Mult = 1
 if T.screenHeight > 1200 then
 	Mult = T.mult
 end
 
-local AurasPostCreateIcon = function(_, button)
+local AurasPostCreateIcon = function(_, button, options)
 	CreateBorderFrame(button)
+
+	if not options.isDebuff then
+		if options.showStealable then
+			for _, border in pairs{button.bordertop, button.borderbottom, button.borderleft, button.borderright} do
+				button:AddDispelTypeTexture(border, {
+					style = Enum.CustomAuraButtonDispelTypeTextureStyle.PreserveAsset,
+					showWhenHelpful = true,
+					showWithoutDispelType = true,
+					stealableFilter = Enum.CustomAuraButtonDispelTypeStealableFilter.Stealable
+				})
+			end
+		else
+			SetColorBorder(button, 0, 0.5, 0)
+		end
+	end
 
 	T.SkinCooldown(button.Cooldown, "aura")
 
@@ -274,50 +259,25 @@ local AurasPostCreateIcon = function(_, button)
 
 	button.Count:SetPoint("BOTTOMRIGHT", button, "BOTTOMRIGHT", 1, 0)
 	button.Count:SetJustifyH("RIGHT")
-	button.Count:SetFont(C.font.auras_font, C.font.auras_font_size * 1 / Mult, C.font.auras_font_style)
+	button.Count:SetFont(C.font.auras_font, C.font.auras_font_size / Mult, C.font.auras_font_style)
 	button.Count:SetShadowOffset(C.font.auras_font_shadow and 1 or 0, C.font.auras_font_shadow and -1 or 0)
 
 	if C.aura.show_spiral then
 		button.Cooldown:SetReverse(true)
-		button.parent = CreateFrame("Frame", nil, button)
-		button.parent:SetFrameLevel(button.Cooldown:GetFrameLevel() + 1)
-		button.Count:SetParent(button.parent)
-	else
-		-- button.Cooldown:SetAlpha(0)
-	end
-end
-
-local AurasPostUpdateIcon = function(_, button, unit, data)
-	if not UnitIsFriend("player", unit) then
-		if data.isHarmfulAura then
-			if C.nameplate.track_debuffs and data.isPlayerAura or (canaccessvalue(data.sourceUnit) and data.sourceUnit == "pet") then
-				if C.nameplate.track_buffs then
-					SetColorBorder(button, unpack(C.media.border_color))
-				end
-			end
-		else
-			local color = C_CurveUtil.EvaluateColorFromBoolean(data.isStealable, {r = 1, g = 0.85, b = 0, a = 1}, {r = 0, g = 0.5, b = 0, a = 1})
-			SetColorBorder(button, color:GetRGB())
-			-- if T.BuffWhiteList[data.name] then
-				-- SetColorBorder(button, 0, 0.5, 0)
-			-- elseif data.isStealable then
-				-- SetColorBorder(button, 1, 0.85, 0)
-			-- end
-		end
 	end
 end
 
 local function UpdateTarget(self)
-	local isTarget = T.unitIsUnit(self.unit, "target")
-	local isMe = T.unitIsUnit(self.unit, "player")
+	local isTarget = T.unitIsUnit(self.__unit, "target")
+	local isMe = T.unitIsUnit(self.__unit, "player")
 
 	if isTarget and not isMe then
 		if C.nameplate.ad_height > 0 or C.nameplate.ad_width > 0 then
-			self:SetSize((C.nameplate.width + C.nameplate.ad_width) * 1, (C.nameplate.height + C.nameplate.ad_height) * 1)
-			self.Castbar:SetPoint("BOTTOMLEFT", self.Health, "BOTTOMLEFT", 0, -8-((C.nameplate.height + C.nameplate.ad_height) * 1))
-			self.Castbar.Icon:SetSize(((C.nameplate.height + C.nameplate.ad_height) * 2 * 1) + 8, ((C.nameplate.height + C.nameplate.ad_height) * 2 * 1) + 8)
+			self:SetSize((C.nameplate.width + C.nameplate.ad_width), (C.nameplate.height + C.nameplate.ad_height))
+			self.Castbar:SetPoint("BOTTOMLEFT", self.Health, "BOTTOMLEFT", 0, -8-((C.nameplate.height + C.nameplate.ad_height)))
+			self.Castbar.Icon:SetSize(((C.nameplate.height + C.nameplate.ad_height) * 2) + 8, ((C.nameplate.height + C.nameplate.ad_height) * 2) + 8)
 			if C.nameplate.class_icons then
-				self.Class.Icon:SetSize(((C.nameplate.height + C.nameplate.ad_height) * 2 * 1) + 8, ((C.nameplate.height + C.nameplate.ad_height) * 2 * 1) + 8)
+				self.Class.Icon:SetSize(((C.nameplate.height + C.nameplate.ad_height) * 2) + 8, ((C.nameplate.height + C.nameplate.ad_height) * 2) + 8)
 			end
 		end
 		if C.nameplate.target_glow then
@@ -326,11 +286,11 @@ local function UpdateTarget(self)
 		self:SetAlpha(1)
 	else
 		if C.nameplate.ad_height > 0 or C.nameplate.ad_width > 0 then
-			self:SetSize(C.nameplate.width * 1, C.nameplate.height * 1)
-			self.Castbar:SetPoint("BOTTOMLEFT", self.Health, "BOTTOMLEFT", 0, -8-(C.nameplate.height * 1))
-			self.Castbar.Icon:SetSize((C.nameplate.height * 2 * 1) + 8, (C.nameplate.height * 2 * 1) + 8)
+			self:SetSize(C.nameplate.width, C.nameplate.height)
+			self.Castbar:SetPoint("BOTTOMLEFT", self.Health, "BOTTOMLEFT", 0, -8-(C.nameplate.height))
+			self.Castbar.Icon:SetSize((C.nameplate.height * 2) + 8, (C.nameplate.height * 2) + 8)
 			if C.nameplate.class_icons then
-				self.Class.Icon:SetSize((C.nameplate.height * 2 * 1) + 8, (C.nameplate.height * 2 * 1) + 8)
+				self.Class.Icon:SetSize((C.nameplate.height * 2) + 8, (C.nameplate.height * 2) + 8)
 			end
 		end
 		if C.nameplate.target_glow then
@@ -345,7 +305,7 @@ local function UpdateTarget(self)
 end
 
 local function UpdateFocus(self)
-	if T.unitIsUnit(self.unit, "focus") then
+	if T.unitIsUnit(self.__unit, "focus") then
 		SetColorBorder(self.Health, 1, 0.8, 0)
 	else
 		SetColorBorder(self.Health, unpack(C.media.border_color))
@@ -369,13 +329,15 @@ local function UpdateName(self)
 	end
 
 	if C.nameplate.class_icons then
-		local reaction = UnitReaction(self.unit, "player")
-		if UnitIsPlayer(self.unit) and (reaction and reaction <= 4) then
-			local _, class = UnitClass(self.unit)
-			local texcoord = CLASS_ICON_TCOORDS[class]
-			self.Class.Icon:SetTexCoord(texcoord[1] + 0.015, texcoord[2] - 0.02, texcoord[3] + 0.018, texcoord[4] - 0.02)
-			self.Class:Show()
-			self.Level:SetPoint("RIGHT", self.Name, "LEFT", -2, 0)
+		local reaction = UnitReaction(self.__unit, "player")
+		if UnitIsPlayer(self.__unit) and (reaction and reaction <= 4) then
+			local _, class = UnitClass(self.__unit)
+			if canaccessvalue(class) then
+				local texcoord = CLASS_ICON_TCOORDS[class]
+				self.Class.Icon:SetTexCoord(texcoord[1] + 0.015, texcoord[2] - 0.02, texcoord[3] + 0.018, texcoord[4] - 0.02)
+				self.Class:Show()
+				self.Level:SetPoint("RIGHT", self.Name, "LEFT", -2, 0)
+			end
 		else
 			self.Class.Icon:SetTexCoord(0, 0, 0, 0)
 			self.Class:Hide()
@@ -428,21 +390,21 @@ if C.nameplate.kick_color then
 end
 
 -- Cast color
-local function castColor(self, unit)
+local function castColor(self, unit, spellID, notInterruptible)
 	-- Check if notInterruptible
-	local color = C_CurveUtil.EvaluateColorFromBoolean(self.notInterruptible, {r = 0.78, g = 0.25, b = 0.25, a = 1}, {r = 1, g = 0.8, b = 0, a = 1})
+	local color = C_CurveUtil.EvaluateColorFromBoolean(notInterruptible, {r = 0.78, g = 0.25, b = 0.25, a = 1}, {r = 1, g = 0.8, b = 0, a = 1})
 
 	-- if C.nameplate.kick_color then
 		-- local start, _, enabled = GetSpellCooldown(kickID)
 		-- local col = C_CurveUtil.EvaluateColorFromBoolean(enabled, {r = 1, g = 0.5, b = 0, a = 1}, {r = 1, g = 0.8, b = 0, a = 1})
 		-- -- Rewrite color for notInterruptible
-		-- color = C_CurveUtil.EvaluateColorFromBoolean(self.notInterruptible, {r = 0.78, g = 0.25, b = 0.25, a = 1}, {r = col.r, g = col.g, b = col.b, a = 1})
+		-- color = C_CurveUtil.EvaluateColorFromBoolean(notInterruptible, {r = 0.78, g = 0.25, b = 0.25, a = 1}, {r = col.r, g = col.g, b = col.b, a = 1})
 	-- end
 
 	self:GetStatusBarTexture():SetVertexColor(color:GetRGBA())
 	self.bg:SetColorTexture(color.r, color.g, color.b, 0.2)
 
-	-- if canaccessvalue(self.notInterruptible) and self.notInterruptible then -- secret, need to create new element with alpha?
+	-- if canaccessvalue(notInterruptible) and notInterruptible then -- secret, need to create new element with alpha?
 		-- self:SetStatusBarColor(0.78, 0.25, 0.25)
 		-- self.bg:SetColorTexture(0.78, 0.25, 0.25, 0.2)
 	-- else
@@ -462,7 +424,7 @@ local function castColor(self, unit)
 	-- end
 
 	if C.nameplate.cast_color then
-		local color = C_CurveUtil.EvaluateColorFromBoolean(C_Spell.IsSpellImportant(self.spellID), {r = 1, g = 0.8, b = 0, a = 1}, {r = C.media.border_color[1], g = C.media.border_color[2], b = C.media.border_color[3], a = 1})
+		local color = C_CurveUtil.EvaluateColorFromBoolean(C_Spell.IsSpellImportant(spellID), {r = 1, g = 0.8, b = 0, a = 1}, {r = C.media.border_color[1], g = C.media.border_color[2], b = C.media.border_color[3], a = 1})
 		SetColorBorder(self, color:GetRGB())
 		SetColorBorder(self.Border, color:GetRGB())
 	end
@@ -495,7 +457,7 @@ local function castColor(self, unit)
 	-- end
 end
 
-local function CastInterrupted(self, unit, interruptedBy)
+local function CastInterrupted(self, unit, _, interruptedBy)
 	self:GetStatusBarTexture():SetVertexColor(0.2, 0.2, 0.2)
 	if interruptedBy then
 		local _, class, _, _, _, unitName = GetPlayerInfoByGUID(interruptedBy)
@@ -514,15 +476,15 @@ end
 
 -- Health color
 local function threatColor(self, forced)
-	if UnitIsPlayer(self.unit) then return end
+	if UnitIsPlayer(self.__unit) then return end
 
 	if C.nameplate.enhance_threat ~= true then
 		SetColorBorder(self.Health, unpack(C.media.border_color))
 	end
-	if UnitIsTapDenied(self.unit) then
+	if UnitIsTapDenied(self.__unit) then
 		self.Health:SetStatusBarColor(0.6, 0.6, 0.6)
 	elseif UnitAffectingCombat("player") then
-		local threatStatus = UnitThreatSituation("player", self.unit)
+		local threatStatus = UnitThreatSituation("player", self.__unit)
 		if self.npcID == "120651" then	-- Explosives affix
 			self.Health:SetStatusBarColor(unpack(C.nameplate.extra_color))
 		elseif self.npcID == "174773" then	-- Spiteful Shade affix
@@ -568,7 +530,7 @@ local function threatColor(self, forced)
 					if IsInRaid() then
 						for i = 1, GetNumGroupMembers() do
 							if UnitExists("raid"..i) and not T.unitIsUnit("raid"..i, "player") and UnitGroupRolesAssigned("raid"..i) == "TANK" then
-								local isTanking = UnitDetailedThreatSituation("raid"..i, self.unit)
+								local isTanking = UnitDetailedThreatSituation("raid"..i, self.__unit)
 								if isTanking then
 									offTank = true
 									break
@@ -641,7 +603,7 @@ local function HealthPostUpdateColor(self, unit, color)
 		if special == "elite" and IsInInstance() then
 			if UnitIsLieutenant(unit) then
 				main.npcID = "miniboss"
-			elseif UnitClassBase(unit) == "PALADIN" then
+			elseif UnitHasPowerType(unit, Enum.PowerType.Mana) then
 				main.npcID = "caster"
 			end
 		end
@@ -686,6 +648,8 @@ local function callback(self, _, unit)
 			self:Show()
 		end
 
+		UpdateTarget(self)
+
 		if T.unitIsUnit(unit, "player") then
 			self.Name:Hide()
 			self.Castbar:SetAlpha(0)
@@ -714,6 +678,15 @@ local function callback(self, _, unit)
 				end
 			end
 
+			-- Hide auras for ally
+			if self.Auras then
+				if UnitIsFriend("player", unit) then
+					self.Auras:SetAlpha(0)
+				else
+					self.Auras:SetAlpha(1)
+				end
+			end
+
 			if C.nameplate.only_name then
 				if UnitIsFriend("player", unit) then
 					if not InCombatLockdown() then
@@ -726,6 +699,12 @@ local function callback(self, _, unit)
 					self.Castbar:SetAlpha(0)
 					if C.nameplate.target_glow then
 						self.Glow:SetAlpha(0)
+					end
+					if C.raidframe.plugins_healcomm then
+						self.Health.DamageAbsorb:Hide()
+						if C.raidframe.plugins_over_heal_absorb then
+							self.Health.OverDamageAbsorbIndicator:Hide()
+						end
 					end
 				else
 					if not InCombatLockdown() then
@@ -740,6 +719,12 @@ local function callback(self, _, unit)
 					if C.nameplate.target_glow then
 						self.Glow:SetAlpha(1)
 					end
+					if C.raidframe.plugins_healcomm then
+						self.Health.DamageAbsorb:Show()
+						if C.raidframe.plugins_over_heal_absorb then
+							self.Health.OverDamageAbsorbIndicator:Show()
+						end
+					end
 				end
 			end
 		end
@@ -748,7 +733,7 @@ end
 
 local function style(self, unit)
 	local main = self
-	self.unit = unit
+	self.__unit = unit
 
 	self:ClearAllPoints()
 	self:SetPoint("CENTER")
@@ -773,7 +758,7 @@ local function style(self, unit)
 	-- Health Text
 	if C.nameplate.health_value then
 		self.Health.value = self.Health:CreateFontString(nil, "OVERLAY")
-		self.Health.value:SetFont(C.font.nameplates_font, C.font.nameplates_font_size * 1, C.font.nameplates_font_style)
+		self.Health.value:SetFont(C.font.nameplates_font, C.font.nameplates_font_size, C.font.nameplates_font_style)
 		self.Health.value:SetShadowOffset(C.font.nameplates_font_shadow and 1 or 0, C.font.nameplates_font_shadow and -1 or 0)
 		self.Health.value:SetPoint("RIGHT", self.Health, "RIGHT", 0, 0)
 		self:Tag(self.Health.value, "[NameplateHealth]")
@@ -798,9 +783,9 @@ local function style(self, unit)
 	-- Target Glow
 	if C.nameplate.target_glow then
 		self.Glow = CreateFrame("Frame", nil, self, "BackdropTemplate")
-		self.Glow:SetBackdrop({edgeFile = [[Interface\AddOns\ShestakUI\Media\Textures\Glow.tga]], edgeSize = 4 * 1})
-		self.Glow:SetPoint("TOPLEFT", -7 * 1, 7 * 1)
-		self.Glow:SetPoint("BOTTOMRIGHT", 7 * 1, -7 * 1)
+		self.Glow:SetBackdrop({edgeFile = [[Interface\AddOns\ShestakUI\Media\Textures\Glow.tga]], edgeSize = 4})
+		self.Glow:SetPoint("TOPLEFT", -7, 7)
+		self.Glow:SetPoint("BOTTOMRIGHT", 7, -7)
 		self.Glow:SetBackdropBorderColor(0.8, 0.8, 0.8)
 		self.Glow:SetFrameLevel(0)
 		self.Glow:Hide()
@@ -833,7 +818,7 @@ local function style(self, unit)
 	-- Cast Time Text
 	self.Castbar.Time = self.Castbar:CreateFontString(nil, "ARTWORK")
 	self.Castbar.Time:SetPoint("RIGHT", self.Castbar, "RIGHT", 0, 0)
-	self.Castbar.Time:SetFont(C.font.nameplates_font, C.font.nameplates_font_size * 1, C.font.nameplates_font_style)
+	self.Castbar.Time:SetFont(C.font.nameplates_font, C.font.nameplates_font_size, C.font.nameplates_font_style)
 	self.Castbar.Time:SetShadowOffset(C.font.nameplates_font_shadow and 1 or 0, C.font.nameplates_font_shadow and -1 or 0)
 
 	-- Cast Name Text
@@ -841,7 +826,7 @@ local function style(self, unit)
 		self.Castbar.Text = self.Castbar:CreateFontString(nil, "OVERLAY")
 		self.Castbar.Text:SetPoint("LEFT", self.Castbar, "LEFT", 3, 0)
 		self.Castbar.Text:SetPoint("RIGHT", self.Castbar.Time, "LEFT", -1, 0)
-		self.Castbar.Text:SetFont(C.font.nameplates_font, C.font.nameplates_font_size * 1, C.font.nameplates_font_style)
+		self.Castbar.Text:SetFont(C.font.nameplates_font, C.font.nameplates_font_size, C.font.nameplates_font_style)
 		self.Castbar.Text:SetShadowOffset(C.font.nameplates_font_shadow and 1 or 0, C.font.nameplates_font_shadow and -1 or 0)
 		self.Castbar.Text:SetHeight(C.font.nameplates_font_size)
 		self.Castbar.Text:SetJustifyH("LEFT")
@@ -855,20 +840,20 @@ local function style(self, unit)
 	self.Castbar.Icon = self.Castbar.Border:CreateTexture(nil, "OVERLAY")
 	self.Castbar.Icon:SetTexCoord(0.1, 0.9, 0.1, 0.9)
 	self.Castbar.Icon:SetDrawLayer("ARTWORK")
-	self.Castbar.Icon:SetSize((C.nameplate.height * 2 * 1) + 8, (C.nameplate.height * 2 * 1) + 8)
+	self.Castbar.Icon:SetSize((C.nameplate.height * 2) + 8, (C.nameplate.height * 2) + 8)
 	self.Castbar.Icon:SetPoint("TOPLEFT", self.Health, "TOPRIGHT", 8, 0)
 	CreateBorderFrame(self.Castbar.Border, self.Castbar.Icon)
 
 	-- Raid Icon
 	self.RaidTargetIndicator = self:CreateTexture(nil, "OVERLAY", nil, 7)
-	self.RaidTargetIndicator:SetSize((C.nameplate.height * 2 * 1) + 8, (C.nameplate.height * 2 * 1) + 8)
+	self.RaidTargetIndicator:SetSize((C.nameplate.height * 2) + 8, (C.nameplate.height * 2) + 8)
 	self.RaidTargetIndicator:SetPoint("BOTTOM", self.Health, "TOP", 0, C.nameplate.track_debuffs and 38 or 16)
 
 	-- Class Icon
 	if C.nameplate.class_icons then
 		self.Class = CreateFrame("Frame", nil, self)
 		self.Class.Icon = self.Class:CreateTexture(nil, "OVERLAY")
-		self.Class.Icon:SetSize((C.nameplate.height * 2 * 1) + 8, (C.nameplate.height * 2 * 1) + 8)
+		self.Class.Icon:SetSize((C.nameplate.height * 2) + 8, (C.nameplate.height * 2) + 8)
 		self.Class.Icon:SetPoint("TOPRIGHT", self.Health, "TOPLEFT", -8, 0)
 		self.Class.Icon:SetTexture("Interface\\WorldStateFrame\\Icons-Classes")
 		self.Class.Icon:SetTexCoord(0, 0, 0, 0)
@@ -880,7 +865,7 @@ local function style(self, unit)
 	if C.nameplate.totem_icons then
 		self.Totem = CreateFrame("Frame", nil, self)
 		self.Totem.Icon = self.Totem:CreateTexture(nil, "OVERLAY")
-		self.Totem.Icon:SetSize((C.nameplate.height * 2 * 1) + 8, (C.nameplate.height * 2 * 1) + 8)
+		self.Totem.Icon:SetSize((C.nameplate.height * 2) + 8, (C.nameplate.height * 2) + 8)
 		self.Totem.Icon:SetPoint("BOTTOM", self.Health, "TOP", 0, 16)
 		self.Totem.Icon:SetTexCoord(0.1, 0.9, 0.1, 0.9)
 		CreateBorderFrame(self.Totem, self.Totem.Icon)
@@ -899,38 +884,53 @@ local function style(self, unit)
 	-- Quest Icon
 	if C.nameplate.quests then
 		self.QuestIcon = self:CreateTexture(nil, "OVERLAY", nil, 7)
-		self.QuestIcon:SetSize((C.nameplate.height * 2 * 1), (C.nameplate.height * 2 * 1))
+		self.QuestIcon:SetSize((C.nameplate.height * 2), (C.nameplate.height * 2))
 		self.QuestIcon:SetPoint("RIGHT", self.Health, "LEFT", -5, 0)
 		self.QuestIcon:Hide()
 
 		self.QuestIcon.Text = self:CreateFontString(nil, "OVERLAY")
 		self.QuestIcon.Text:SetPoint("RIGHT", self.QuestIcon, "LEFT", -1, 0)
-		self.QuestIcon.Text:SetFont(C.font.nameplates_font, C.font.nameplates_font_size * 1 * 2, C.font.nameplates_font_style)
+		self.QuestIcon.Text:SetFont(C.font.nameplates_font, C.font.nameplates_font_size * 2, C.font.nameplates_font_style)
 		self.QuestIcon.Text:SetShadowOffset(C.font.nameplates_font_shadow and 1 or 0, C.font.nameplates_font_shadow and -1 or 0)
 
 		self.QuestIcon.Item = self:CreateTexture(nil, "OVERLAY")
-		self.QuestIcon.Item:SetSize((C.nameplate.height * 2 * 1) - 2, (C.nameplate.height * 2 * 1) - 2)
+		self.QuestIcon.Item:SetSize((C.nameplate.height * 2) - 2, (C.nameplate.height * 2) - 2)
 		self.QuestIcon.Item:SetPoint("RIGHT", self.QuestIcon.Text, "LEFT", -2, 0)
 		self.QuestIcon.Item:SetTexCoord(0.1, 0.9, 0.1, 0.9)
 	end
 
 	-- Aura tracking
 	if C.nameplate.track_debuffs or C.nameplate.track_buffs then
-		self.Auras = CreateFrame("Frame", nil, self)
-		self.Auras:SetPoint("BOTTOMRIGHT", self.Health, "TOPRIGHT", 0, C.font.nameplates_font_size + 8)
-		self.Auras.initialAnchor = "BOTTOMRIGHT"
-		self.Auras.growthX = "LEFT"
-		self.Auras.growthY = "UP"
-		self.Auras.numDebuffs = C.nameplate.track_debuffs and 6 or 0
-		self.Auras.numBuffs = C.nameplate.track_buffs and 4 or 0
-		self.Auras:SetSize(20 + C.nameplate.width, C.nameplate.auras_size)
-		self.Auras.spacing = 5 * 1
-		self.Auras.size = C.nameplate.auras_size * 1 - 3
-		self.Auras.disableMouse = true
+		self.Auras = self:CreateAuras({
+			initialAnchor = "BOTTOMRIGHT",
+			growthX = "LEFT",
+			growthY = "UP",
+			layoutLimit = C.nameplate.width + 20
+		})
 
-		self.Auras.FilterAura = AurasCustomFilter
+		self.Auras:SetPoint("BOTTOMRIGHT", self.Health, "TOPRIGHT", 0, C.font.nameplates_font_size + 8)
+		self.Auras.elementSpacing = 5
+		self.Auras.lineSpacing = 5
+		self.Auras.groupLineSpacing = 5
+		self.Auras.size = C.nameplate.auras_size - 3
+		self.Auras.disableMouse = true
+		self.Auras.showCount = true
 		self.Auras.PostCreateButton = AurasPostCreateIcon
-		self.Auras.PostUpdateButton = AurasPostUpdateIcon
+
+		if C.nameplate.track_buffs then
+			self.Auras:AddGroup("HELPFUL|RAID_PLAYER_DISPELLABLE", {
+				maxFrameCount = 2,
+				showStealable = true
+			})
+		end
+
+		if C.nameplate.track_debuffs then
+			self.Auras:AddGroup("HARMFUL|PLAYER", {
+				candidateFilters = {includeSpellIDs = T.DebuffWhiteList, excludeSpellIDs = T.DebuffBlackList},
+				maxFrameCount = 6,
+				isDebuff = true
+			})
+		end
 	end
 
 	-- Health color
@@ -952,20 +952,38 @@ local function style(self, unit)
 		absorb:SetPoint("TOPLEFT", self.Health:GetStatusBarTexture(), "TOPRIGHT", 0, 0)
 		absorb:SetPoint("BOTTOMLEFT", self.Health:GetStatusBarTexture(), "BOTTOMRIGHT", 0, 0)
 		absorb:SetStatusBarTexture(C.media.texture)
-		absorb:SetStatusBarColor(1, 1, 0, 1)
-		self.HealthPrediction = {
-			damageAbsorb = absorb
-		}
+		absorb:SetStatusBarColor(1, 1, 0, 0.8)
+		self.Health.DamageAbsorb = absorb
+
+		-- Over absorb in right
+		if C.raidframe.plugins_over_heal_absorb then
+			local oa = CreateFrame("StatusBar", nil, self)
+			oa:SetAllPoints(self.Health)
+			oa:SetFrameLevel(self.Health:GetFrameLevel())
+			oa:SetStatusBarTexture(C.media.blank)
+			oa:SetReverseFill(true)
+			oa:SetValue(0)
+
+			local texture = oa:GetStatusBarTexture()
+			texture:SetTexture([[Interface\AddOns\ShestakUI\Media\Textures\Cross.tga]], "REPEAT", "REPEAT")
+			texture:SetVertexColor(0.5, 0.5, 1)
+			texture:SetHorizTile(true)
+			texture:SetVertTile(true)
+			texture:SetAlpha(0.5)
+			texture:SetBlendMode("ADD")
+			self.Health.OverDamageAbsorbIndicator = oa
+
+			hooksecurefunc(self.Health, "PostUpdate", function(self, unit, _, max)
+				local absorb = UnitGetTotalAbsorbs(unit)
+				oa:SetMinMaxValues(0, max)
+				oa:SetValue(absorb)
+			end)
+		end
 	end
 
-	-- Every event should be register with this
-	table.insert(self.__elements, UpdateName)
+	-- Register update functions as event handlers
 	self:RegisterEvent("UNIT_NAME_UPDATE", UpdateName)
-
-	table.insert(self.__elements, UpdateTarget)
 	self:RegisterEvent("PLAYER_TARGET_CHANGED", UpdateTarget, true)
-
-	table.insert(self.__elements, UpdateFocus)
 	self:RegisterEvent("PLAYER_FOCUS_CHANGED", UpdateFocus, true)
 
 	-- Disable movement via /moveui
